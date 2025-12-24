@@ -4,14 +4,36 @@ A Silly Tavern-style multi-agent LLM manager for Android with local storage and 
 
 ## Features
 
+### Core Features (V1)
 - 🤖 **Multiple AI Characters**: Create and manage unique AI personalities
 - 💬 **Chat Interface**: Beautiful chat bubbles with message history
 - 🎨 **Dark Theme**: Silly Tavern-inspired dark UI
-- 🔐 **User Authentication**: Secure local login system
+- 🔐 **Secure Authentication**: PBKDF2 password hashing with 100,000 iterations
 - 💾 **Local Storage**: SQLite database for offline access
 - 🧠 **Thought Patterns**: Characters maintain internal reasoning
 - 😊 **Emotion Tracking**: Messages display character emotions
 - ⚙️ **Customizable LLM**: Configure model, temperature, and tokens
+
+### V2: Room Sharing & Collaboration
+- 👥 **Collaborative Rooms**: Create public or private rooms for group interactions
+- 🔗 **Multi-Character Rooms**: Add multiple characters to the same room
+- 👤 **Participant Management**: Track who's in each room
+
+### V3: Memory Branching
+- 🌿 **Memory Forking**: Create private conversation branches
+- 🔀 **Branch Merging**: Share memories back to the main context
+- 📊 **Branch Hierarchy**: Visualize memory branch relationships
+
+### V4: Document Import
+- 📄 **Document Parsing**: Import characters from .md, .txt, .json, .html files
+- 🤖 **AI Extraction**: Automatic character trait and personality extraction
+- ✨ **Auto-Generation**: System prompts generated from parsed data
+
+### V5: Personality Evolution
+- 🌡️ **Mood Tracking**: Real-time mood state with emoji visualization
+- 📈 **Trait Evolution**: Automatic trait changes from conversation analysis
+- 💭 **Internal Reasoning**: View character's thought patterns
+- 📜 **Evolution History**: Track personality changes over time
 
 ## Getting Started
 
@@ -52,30 +74,37 @@ The APK will be at `build/app/outputs/flutter-apk/app-release.apk`
 ```
 flutter_app/
 ├── lib/
-│   ├── main.dart              # App entry point
-│   ├── models/                # Data models
+│   ├── main.dart                         # App entry point
+│   ├── models/                           # Data models
 │   │   ├── user.dart
 │   │   ├── character.dart
 │   │   └── message.dart
-│   ├── services/              # Business logic
-│   │   ├── database_service.dart
+│   ├── services/                         # Business logic
+│   │   ├── database_service.dart         # SQLite with PBKDF2 auth
 │   │   ├── auth_service.dart
 │   │   ├── character_service.dart
-│   │   └── chat_service.dart
-│   ├── screens/               # UI screens
+│   │   ├── chat_service.dart
+│   │   ├── room_service.dart             # V2: Room management
+│   │   ├── memory_branch_service.dart    # V3: Memory forking
+│   │   ├── document_parser_service.dart  # V4: Document import
+│   │   └── personality_evolution_service.dart  # V5: Personality tracking
+│   ├── screens/                          # UI screens
 │   │   ├── login_screen.dart
 │   │   ├── register_screen.dart
 │   │   ├── characters_screen.dart
 │   │   ├── chat_screen.dart
-│   │   └── character_edit_screen.dart
-│   ├── widgets/               # Reusable widgets
+│   │   ├── character_edit_screen.dart
+│   │   ├── rooms_screen.dart             # V2: Room UI
+│   │   ├── document_import_screen.dart   # V4: Document import UI
+│   │   └── personality_screen.dart       # V5: Personality view
+│   ├── widgets/                          # Reusable widgets
 │   │   ├── character_card.dart
 │   │   └── message_bubble.dart
-│   └── theme/                 # App theming
+│   └── theme/                            # App theming
 │       └── app_theme.dart
-├── assets/                    # Static assets
+├── assets/                               # Static assets
 │   └── avatars/
-├── pubspec.yaml              # Dependencies
+├── pubspec.yaml                          # Dependencies
 └── README.md
 ```
 
@@ -120,8 +149,19 @@ Edit `lib/theme/app_theme.dart` to customize the color palette.
 - `sqflite` - Local SQLite database
 - `shared_preferences` - Simple key-value storage
 - `http` - HTTP client for API calls
-- `crypto` - Password hashing
+- `crypto` - Secure PBKDF2 password hashing
 - `intl` - Date formatting
+- `file_picker` - Document import (V4)
+
+## Security
+
+### Password Hashing
+- **Algorithm**: PBKDF2 with HMAC-SHA256
+- **Iterations**: 100,000 (industry standard)
+- **Salt**: 32-byte cryptographically random per-user salt
+- **Key Length**: 32 bytes
+- **Comparison**: Constant-time to prevent timing attacks
+- **Migration**: Automatic upgrade from legacy hashes on login
 
 ## License
 

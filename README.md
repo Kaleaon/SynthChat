@@ -236,11 +236,12 @@ Agents can develop over time through:
 - `OPENAI_API_KEY`: Your OpenAI API key (required for LLM responses)
 
 #### Web Application
-- `SECRET_KEY`: Flask secret key for sessions (change in production!)
+- `SECRET_KEY`: Flask secret key for sessions (**MUST change in production!**)
 - `DATABASE_URL`: Database connection URL (default: `sqlite:///synthchat.db`)
 - `HOST`: Server host (default: `0.0.0.0`)
 - `PORT`: Server port (default: `5000`)
-- `FLASK_DEBUG`: Enable debug mode (default: `true`)
+- `FLASK_DEBUG`: Enable debug mode (default: `false` - **never enable in production**)
+- `CORS_ALLOWED_ORIGINS`: Allowed CORS origins (comma-separated, restrict in production)
 
 ### Character Configuration
 
@@ -357,13 +358,44 @@ See LICENSE file for details.
 
 The Flutter Android app provides a native mobile experience with:
 
-### Features
+### Core Features (V1)
 - **Character Cards**: Grid of character cards with avatars
 - **Chat Bubbles**: Beautiful message bubbles with emotions
 - **Local Storage**: SQLite database for offline access
-- **Secure Auth**: Password hashing with SHA-256
+- **Secure Auth**: Password hashing with PBKDF2 (100,000 iterations, per-user salt)
 - **Dark Theme**: Silly Tavern-inspired purple/dark blue theme
 - **LLM Settings**: Configure model, temperature, and max tokens
+
+### V2: Room Sharing & Collaborative Interactions
+- Create public or private rooms for group conversations
+- Add multiple characters to a room
+- Collaborative character interactions
+- Room participant management
+
+### V3: Memory Branching & Forking
+- Fork conversations for private memory branches
+- Maintain separate memory contexts
+- Merge branches back to share memories with main context
+- Branch hierarchy visualization
+
+### V4: AI-Powered Document Parsing
+- Import character definitions from documents (.md, .txt, .json, .html)
+- AI extraction of character traits, personality, and backstory
+- Automatic system prompt generation
+- Character creation from parsed data
+
+### V5: Personality Evolution & Mood Tracking
+- Real-time mood tracking with emoji visualization
+- Trait evolution based on conversation analysis
+- Internal reasoning/thought pattern display
+- Personality event history
+- Automatic mood and trait changes from interactions
+
+### Security Features
+- **PBKDF2 Password Hashing**: Secure password storage with 100,000 iterations
+- **Per-User Salt**: Unique cryptographic salt for each user
+- **Constant-Time Comparison**: Protection against timing attacks
+- **Legacy Migration**: Automatic upgrade from legacy hashes on login
 
 ### Building the APK
 
