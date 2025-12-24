@@ -133,15 +133,24 @@ class MemoryBranchService extends ChangeNotifier {
   }
 
   /// Get branch hierarchy (for visualization)
+  /// Get branch hierarchy with cycle detection
   List<MemoryBranch> getBranchHierarchy(int branchId) {
     final hierarchy = <MemoryBranch>[];
+    final visited = <int>{};
     var currentId = branchId;
 
     while (true) {
-      final branch = _branches.firstWhere(
-        (b) => b.id == currentId,
-        orElse: () => throw Exception('Branch not found'),
-      );
+      // Detect circular references to prevent infinite loop
+      if (visited.contains(currentId)) {
+        break;
+      }
+      visited.add(currentId);
+
+      // Safe lookup without throwing
+      final matches = _branches.where((b) => b.id == currentId);
+      if (matches.isEmpty) break;
+      final branch = matches.first;
+
       hierarchy.insert(0, branch);
 
       if (branch.parentBranchId == null) break;

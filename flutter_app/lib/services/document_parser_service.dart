@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -226,7 +227,7 @@ class DocumentParserService extends ChangeNotifier {
       try {
         return await _extractWithAI(content);
       } catch (e) {
-        print('AI extraction failed, falling back to heuristics: $e');
+        debugPrint('AI extraction failed, falling back to heuristics: $e');
       }
     }
 
@@ -236,6 +237,11 @@ class DocumentParserService extends ChangeNotifier {
 
   /// Extract character data using OpenAI API
   Future<ExtractedCharacterData> _extractWithAI(String content) async {
+    // Truncate content to avoid exceeding token limits (~12K chars ≈ 3K tokens)
+    final truncatedContent = content.length > 12000 
+        ? '${content.substring(0, 12000)}...[truncated]' 
+        : content;
+    
     final prompt = '''
 Analyze the following document and extract character information. Return a JSON object with these fields:
 - name: The character's name
@@ -247,7 +253,7 @@ Analyze the following document and extract character information. Return a JSON 
 - backstory: The character's background story
 
 Document content:
-$content
+$truncatedContent
 
 Return only valid JSON.
 ''';
@@ -267,21 +273,32 @@ Return only valid JSON.
           'temperature': 0.3,
           'max_tokens': 1000,
         }),
+      ).timeout(
+        const Duration(seconds: 60),
+        onTimeout: () => throw TimeoutException('OpenAI API request timed out'),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final content = data['choices'][0]['message']['content'] as String;
-        
-        // Parse JSON from response
-        final jsonMatch = RegExp(r'\{[\s\S]*\}').firstMatch(content);
-        if (jsonMatch != null) {
-          final characterData = jsonDecode(jsonMatch.group(0)!);
-          return ExtractedCharacterData.fromMap(characterData);
+        // Safely access nested JSON response
+        final choices = data['choices'] as List?;
+        if (choices != null && choices.isNotEmpty) {
+          final message = choices[0]['message'] as Map<String, dynamic>?;
+          final responseContent = message?['content'] as String?;
+          if (responseContent != null) {
+            // Parse JSON from response
+            final jsonMatch = RegExp(r'\{[\s\S]*\}').firstMatch(responseContent);
+            if (jsonMatch != null) {
+              final characterData = jsonDecode(jsonMatch.group(0)!);
+              return ExtractedCharacterData.fromMap(characterData);
+            }
+          }
         }
       }
+    } on TimeoutException {
+      debugPrint('AI extraction timed out');
     } catch (e) {
-      print('AI extraction error: $e');
+      debugPrint('AI extraction error: $e');
     }
 
     throw Exception('AI extraction failed');

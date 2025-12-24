@@ -66,8 +66,15 @@ class _RoomsScreenState extends State<RoomsScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
+                final auth = context.read<AuthService>();
+                if (auth.currentUser == null) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please log in to create a room')),
+                  );
+                  return;
+                }
                 if (nameController.text.trim().isNotEmpty) {
-                  final auth = context.read<AuthService>();
                   final roomService = context.read<RoomService>();
                   await roomService.createRoom(
                     name: nameController.text.trim(),
@@ -273,11 +280,12 @@ class _RoomDetailsSheetState extends State<_RoomDetailsSheet> {
                 spacing: 8,
                 runSpacing: 8,
                 children: participants.map((p) {
+                  final displayName = p.username ?? 'U';
                   return Chip(
                     avatar: CircleAvatar(
                       backgroundColor: AppColors.primary,
                       child: Text(
-                        (p.username ?? 'U')[0].toUpperCase(),
+                        displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
                         style: const TextStyle(fontSize: 12),
                       ),
                     ),
@@ -342,11 +350,20 @@ class _RoomDetailsSheetState extends State<_RoomDetailsSheet> {
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor: AppColors.primary,
-                      child: Text(character.name[0].toUpperCase()),
+                      child: Text(
+                        character.name.isNotEmpty ? character.name[0].toUpperCase() : '?',
+                      ),
                     ),
                     title: Text(character.name),
                     onTap: () async {
                       final auth = context.read<AuthService>();
+                      if (auth.currentUser == null) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please log in to join a room')),
+                        );
+                        return;
+                      }
                       final roomService = context.read<RoomService>();
                       await roomService.joinRoom(
                         widget.room.id,

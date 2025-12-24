@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -201,26 +202,44 @@ class ChatService extends ChangeNotifier {
 
     apiMessages.add({'role': 'user', 'content': userInput});
 
-    // Make API request
-    final response = await http.post(
-      Uri.parse(_apiUrl),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $_apiKey',
-      },
-      body: json.encode({
-        'model': character.model,
-        'messages': apiMessages,
-        'temperature': character.temperature,
-        'max_tokens': character.maxTokens,
-      }),
-    );
+    // Make API request with timeout
+    try {
+      final response = await http.post(
+        Uri.parse(_apiUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_apiKey',
+        },
+        body: json.encode({
+          'model': character.model,
+          'messages': apiMessages,
+          'temperature': character.temperature,
+          'max_tokens': character.maxTokens,
+        }),
+      ).timeout(
+        const Duration(seconds: 60),
+        onTimeout: () => throw TimeoutException('OpenAI API request timed out'),
+      );
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return data['choices'][0]['message']['content'] as String;
-    } else {
-      print('OpenAI API error: ${response.statusCode} - ${response.body}');
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        // Safely access nested JSON response
+        final choices = data['choices'] as List?;
+        if (choices != null && choices.isNotEmpty) {
+          final message = choices[0]['message'] as Map<String, dynamic>?;
+          final content = message?['content'] as String?;
+          if (content != null) {
+            return content;
+          }
+        }
+        debugPrint('OpenAI API returned unexpected response structure');
+        return null;
+      } else {
+        debugPrint('OpenAI API error: ${response.statusCode} - ${response.body}');
+        return null;
+      }
+    } on TimeoutException {
+      debugPrint('OpenAI API request timed out');
       return null;
     }
   }

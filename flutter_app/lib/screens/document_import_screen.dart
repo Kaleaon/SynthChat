@@ -180,7 +180,9 @@ class _DocumentImportScreenState extends State<DocumentImportScreen> {
                             backgroundColor: AppColors.primary,
                             radius: 24,
                             child: Text(
-                              _extractedData!.name[0].toUpperCase(),
+                              _extractedData!.name.isNotEmpty 
+                                  ? _extractedData!.name[0].toUpperCase() 
+                                  : '?',
                               style: const TextStyle(fontSize: 20),
                             ),
                           ),

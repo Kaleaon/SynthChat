@@ -176,11 +176,11 @@ class MessageBubble extends StatelessWidget {
   }
 
   String _getInitials(String name) {
-    final words = name.split(' ');
+    final words = name.trim().split(' ').where((w) => w.isNotEmpty).toList();
     if (words.length >= 2) {
       return '${words[0][0]}${words[1][0]}'.toUpperCase();
     }
-    return name.isNotEmpty ? name[0].toUpperCase() : '?';
+    return words.isNotEmpty ? words[0][0].toUpperCase() : '?';
   }
 
   Color _getAvatarColor(String name) {
