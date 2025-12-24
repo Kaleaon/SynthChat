@@ -1,0 +1,80 @@
+name: Android Build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'flutter_app/**'
+      - '.github/workflows/android-build.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'flutter_app/**'
+      - '.github/workflows/android-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+          channel: 'stable'
+          cache: true
+      
+      - name: Verify Flutter installation
+        run: |
+          flutter --version
+          flutter doctor -v
+      
+      - name: Create Android platform files
+        run: |
+          cd flutter_app
+          flutter create --platforms=android .
+      
+      - name: Get Flutter dependencies
+        run: |
+          cd flutter_app
+          flutter pub get
+      
+      - name: Run Flutter analyze
+        run: |
+          cd flutter_app
+          flutter analyze
+        continue-on-error: true
+      
+      - name: Build Android APK
+        run: |
+          cd flutter_app
+          flutter build apk --release
+      
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+      
+      - name: Build summary
+        run: |
+          echo "### Android Build Successful! :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "APK has been built and uploaded as an artifact." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**APK Location:** \`flutter_app/build/app/outputs/flutter-apk/app-release.apk\`" >> $GITHUB_STEP_SUMMARY
