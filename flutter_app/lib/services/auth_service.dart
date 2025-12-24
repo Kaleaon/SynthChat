@@ -2,12 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 import 'database_service.dart';
+import 'bluesky_auth_service.dart';
 
-// ignore: avoid_print
-
-/// Authentication service
+/// Authentication service with local and Bluesky AT Protocol support
 class AuthService extends ChangeNotifier {
   final DatabaseService _db;
+  BlueskyAuthService? _blueskyAuth;
   User? _currentUser;
   bool _isLoading = false;
 
@@ -15,9 +15,15 @@ class AuthService extends ChangeNotifier {
     _loadSession();
   }
 
+  /// Set the Bluesky auth service (for dependency injection)
+  void setBlueskyAuth(BlueskyAuthService blueskyAuth) {
+    _blueskyAuth = blueskyAuth;
+  }
+
   User? get currentUser => _currentUser;
   bool get isLoggedIn => _currentUser != null;
   bool get isLoading => _isLoading;
+  bool get isBlueskyUser => _currentUser?.isBlueskyUser ?? false;
 
   /// Load saved session
   Future<void> _loadSession() async {
@@ -102,11 +108,17 @@ class AuthService extends ChangeNotifier {
     return (true, 'Login successful');
   }
 
-  /// Log out
+  /// Log out (handles both local and Bluesky sessions)
   Future<void> logout() async {
+    // If user was logged in via Bluesky, also logout from Bluesky
+    if (_currentUser?.isBlueskyUser == true && _blueskyAuth != null) {
+      await _blueskyAuth!.logout();
+    }
+    
     _currentUser = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('user_id');
+    await prefs.remove('auth_provider');
     notifyListeners();
   }
 
@@ -115,6 +127,139 @@ class AuthService extends ChangeNotifier {
     if (_currentUser != null) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('user_id', _currentUser!.id);
+      await prefs.setString('auth_provider', _currentUser!.authProvider);
+    }
+  }
+
+  // ==================== Bluesky AT Protocol Authentication ====================
+
+  /// Login with Bluesky using handle and app password
+  /// 
+  /// The AT Protocol provides decentralized authentication:
+  /// - Users can use their Bluesky handle (e.g., user.bsky.social)
+  /// - Or any AT Protocol compatible handle from federated servers
+  /// - App passwords are recommended for security
+  Future<(bool, String)> loginWithBluesky(String handle, String appPassword) async {
+    if (_blueskyAuth == null) {
+      return (false, 'Bluesky authentication not configured');
+    }
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      // Authenticate with Bluesky
+      final (success, message) = await _blueskyAuth!.login(handle, appPassword);
+      
+      if (!success) {
+        _isLoading = false;
+        notifyListeners();
+        return (false, message);
+      }
+
+      // Get or create local user linked to Bluesky account
+      final user = await _blueskyAuth!.getOrCreateLocalUser();
+      
+      if (user == null) {
+        await _blueskyAuth!.logout();
+        _isLoading = false;
+        notifyListeners();
+        return (false, 'Failed to create local account');
+      }
+
+      _currentUser = user;
+      await _saveSession();
+      
+      _isLoading = false;
+      notifyListeners();
+      
+      return (true, 'Successfully logged in as ${user.blueskyHandle ?? user.username}');
+    } catch (e) {
+      debugPrint('Bluesky login error: $e');
+      _isLoading = false;
+      notifyListeners();
+      return (false, 'Bluesky login failed. Please try again.');
+    }
+  }
+
+  /// Link existing local account to Bluesky
+  Future<(bool, String)> linkBlueskyAccount(String handle, String appPassword) async {
+    if (_blueskyAuth == null) {
+      return (false, 'Bluesky authentication not configured');
+    }
+
+    if (_currentUser == null) {
+      return (false, 'Please log in first');
+    }
+
+    try {
+      // Authenticate with Bluesky
+      final (success, message) = await _blueskyAuth!.login(handle, appPassword);
+      
+      if (!success) {
+        return (false, message);
+      }
+
+      final session = _blueskyAuth!.session;
+      if (session == null) {
+        return (false, 'Failed to get Bluesky session');
+      }
+
+      // Link the Bluesky account to local user
+      final linked = await _db.linkBlueskyAccount(
+        _currentUser!.id,
+        session.did,
+        session.handle,
+      );
+
+      if (!linked) {
+        return (false, 'Failed to link Bluesky account');
+      }
+
+      // Refresh user data
+      final userData = await _db.getUserById(_currentUser!.id);
+      if (userData != null) {
+        _currentUser = User.fromMap(userData);
+        notifyListeners();
+      }
+
+      return (true, 'Bluesky account linked successfully');
+    } catch (e) {
+      debugPrint('Error linking Bluesky account: $e');
+      return (false, 'Failed to link Bluesky account');
+    }
+  }
+
+  /// Unlink Bluesky account from local user
+  Future<(bool, String)> unlinkBlueskyAccount() async {
+    if (_currentUser == null) {
+      return (false, 'Not logged in');
+    }
+
+    if (_currentUser!.authProvider == 'bluesky') {
+      return (false, 'Cannot unlink Bluesky from a Bluesky-only account');
+    }
+
+    try {
+      final success = await _db.unlinkBlueskyAccount(_currentUser!.id);
+      
+      if (success) {
+        // Logout from Bluesky
+        await _blueskyAuth?.logout();
+        
+        // Refresh user data
+        final userData = await _db.getUserById(_currentUser!.id);
+        if (userData != null) {
+          _currentUser = User.fromMap(userData);
+          notifyListeners();
+        }
+
+        return (true, 'Bluesky account unlinked');
+      }
+      return (false, 'Failed to unlink Bluesky account');
+    } catch (e) {
+      debugPrint('Error unlinking Bluesky account: $e');
+      return (false, 'Failed to unlink Bluesky account');
     }
   }
 }

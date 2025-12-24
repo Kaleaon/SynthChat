@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'database_service.dart';
+import '../models/user.dart';
 
 /// Room model for V2: collaborative character interactions
 class Room {
@@ -80,6 +81,8 @@ class RoomService extends ChangeNotifier {
   List<Room> _rooms = [];
   Room? _currentRoom;
   List<RoomParticipant> _currentParticipants = [];
+  List<RoomInvitation> _pendingInvitations = [];
+  List<RoomInvitation> _sentInvitations = [];
   bool _isLoading = false;
 
   RoomService(this._db);
@@ -87,6 +90,9 @@ class RoomService extends ChangeNotifier {
   List<Room> get rooms => _rooms;
   Room? get currentRoom => _currentRoom;
   List<RoomParticipant> get currentParticipants => _currentParticipants;
+  List<RoomInvitation> get pendingInvitations => _pendingInvitations;
+  List<RoomInvitation> get sentInvitations => _sentInvitations;
+  int get pendingInvitationsCount => _pendingInvitations.length;
   bool get isLoading => _isLoading;
 
   /// Load all rooms for a user
@@ -189,5 +195,134 @@ class RoomService extends ChangeNotifier {
     _currentRoom = null;
     _currentParticipants = [];
     notifyListeners();
+  }
+
+  // ==================== Invitation Methods ====================
+
+  /// Load pending invitations for a user
+  Future<void> loadPendingInvitations(int userId) async {
+    try {
+      final invitationMaps = await _db.getPendingInvitations(userId);
+      _pendingInvitations = invitationMaps.map((m) => RoomInvitation.fromMap(m)).toList();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading pending invitations: $e');
+    }
+  }
+
+  /// Load sent invitations for a user
+  Future<void> loadSentInvitations(int userId) async {
+    try {
+      final invitationMaps = await _db.getSentInvitations(userId);
+      _sentInvitations = invitationMaps.map((m) => RoomInvitation.fromMap(m)).toList();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading sent invitations: $e');
+    }
+  }
+
+  /// Send an invitation to a user
+  Future<(bool, String)> inviteUserToRoom({
+    required int roomId,
+    required int inviterId,
+    required String usernameOrEmail,
+    String message = '',
+  }) async {
+    try {
+      // Find the user by username or email
+      final userData = await _db.findUserByUsernameOrEmail(usernameOrEmail);
+      if (userData == null) {
+        return (false, 'User not found. Please check the username or email.');
+      }
+
+      final inviteeId = userData['id'] as int;
+
+      // Check if user is already a participant
+      final participants = await _db.getRoomParticipants(roomId);
+      final isAlreadyParticipant = participants.any((p) => p['user_id'] == inviteeId);
+      if (isAlreadyParticipant) {
+        return (false, 'User is already in this room.');
+      }
+
+      // Check if inviting self
+      if (inviteeId == inviterId) {
+        return (false, 'You cannot invite yourself.');
+      }
+
+      // Create the invitation
+      final invitation = await _db.createRoomInvitation(
+        roomId: roomId,
+        inviterId: inviterId,
+        inviteeId: inviteeId,
+        message: message,
+      );
+
+      if (invitation == null) {
+        return (false, 'User already has a pending invitation to this room.');
+      }
+
+      // Reload sent invitations
+      await loadSentInvitations(inviterId);
+
+      final inviteeUsername = userData['username'] as String;
+      return (true, 'Invitation sent to $inviteeUsername');
+    } catch (e) {
+      debugPrint('Error inviting user to room: $e');
+      return (false, 'Failed to send invitation. Please try again.');
+    }
+  }
+
+  /// Accept a room invitation
+  Future<(bool, String)> acceptInvitation(int invitationId, int userId) async {
+    try {
+      final success = await _db.acceptRoomInvitation(invitationId);
+      if (success) {
+        await loadPendingInvitations(userId);
+        await loadRooms(userId);
+        return (true, 'Invitation accepted! You have joined the room.');
+      }
+      return (false, 'Failed to accept invitation.');
+    } catch (e) {
+      debugPrint('Error accepting invitation: $e');
+      return (false, 'Failed to accept invitation. Please try again.');
+    }
+  }
+
+  /// Reject a room invitation
+  Future<(bool, String)> rejectInvitation(int invitationId, int userId) async {
+    try {
+      final success = await _db.rejectRoomInvitation(invitationId);
+      if (success) {
+        await loadPendingInvitations(userId);
+        return (true, 'Invitation declined.');
+      }
+      return (false, 'Failed to decline invitation.');
+    } catch (e) {
+      debugPrint('Error rejecting invitation: $e');
+      return (false, 'Failed to decline invitation. Please try again.');
+    }
+  }
+
+  /// Cancel a sent invitation
+  Future<(bool, String)> cancelInvitation(int invitationId, int userId) async {
+    try {
+      final success = await _db.cancelRoomInvitation(invitationId);
+      if (success) {
+        await loadSentInvitations(userId);
+        return (true, 'Invitation cancelled.');
+      }
+      return (false, 'Failed to cancel invitation.');
+    } catch (e) {
+      debugPrint('Error cancelling invitation: $e');
+      return (false, 'Failed to cancel invitation. Please try again.');
+    }
+  }
+
+  /// Load all invitation data for a user
+  Future<void> loadAllInvitations(int userId) async {
+    await Future.wait([
+      loadPendingInvitations(userId),
+      loadSentInvitations(userId),
+    ]);
   }
 }

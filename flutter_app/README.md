@@ -9,6 +9,7 @@ A Silly Tavern-style multi-agent LLM manager for Android with local storage and 
 - 💬 **Chat Interface**: Beautiful chat bubbles with message history
 - 🎨 **Dark Theme**: Silly Tavern-inspired dark UI
 - 🔐 **Secure Authentication**: PBKDF2 password hashing with 100,000 iterations
+- 🦋 **Bluesky Login**: Federated authentication via AT Protocol
 - 💾 **Local Storage**: SQLite database for offline access
 - 🧠 **Thought Patterns**: Characters maintain internal reasoning
 - 😊 **Emotion Tracking**: Messages display character emotions
@@ -18,6 +19,8 @@ A Silly Tavern-style multi-agent LLM manager for Android with local storage and 
 - 👥 **Collaborative Rooms**: Create public or private rooms for group interactions
 - 🔗 **Multi-Character Rooms**: Add multiple characters to the same room
 - 👤 **Participant Management**: Track who's in each room
+- 📧 **User Invitations**: Invite other users to your chatrooms by username or email
+- 📬 **Invitation Management**: Accept/decline pending invitations with custom messages
 
 ### V3: Memory Branching
 - 🌿 **Memory Forking**: Create private conversation branches
@@ -80,14 +83,15 @@ flutter_app/
 │   │   ├── character.dart
 │   │   └── message.dart
 │   ├── services/                         # Business logic
-│   │   ├── database_service.dart         # SQLite with PBKDF2 auth
-│   │   ├── auth_service.dart
-│   │   ├── character_service.dart
-│   │   ├── chat_service.dart
-│   │   ├── room_service.dart             # V2: Room management
-│   │   ├── memory_branch_service.dart    # V3: Memory forking
-│   │   ├── document_parser_service.dart  # V4: Document import
-│   │   └── personality_evolution_service.dart  # V5: Personality tracking
+    │   │   ├── database_service.dart         # SQLite with PBKDF2 auth
+    │   │   ├── auth_service.dart             # Local + Bluesky auth
+    │   │   ├── bluesky_auth_service.dart     # AT Protocol authentication
+    │   │   ├── character_service.dart
+    │   │   ├── chat_service.dart
+    │   │   ├── room_service.dart             # V2: Room + invitations
+    │   │   ├── memory_branch_service.dart    # V3: Memory forking
+    │   │   ├── document_parser_service.dart  # V4: Document import
+    │   │   └── personality_evolution_service.dart  # V5: Personality tracking
 │   ├── screens/                          # UI screens
 │   │   ├── login_screen.dart
 │   │   ├── register_screen.dart
@@ -162,6 +166,27 @@ Edit `lib/theme/app_theme.dart` to customize the color palette.
 - **Key Length**: 32 bytes
 - **Comparison**: Constant-time to prevent timing attacks
 - **Migration**: Automatic upgrade from legacy hashes on login
+
+### Bluesky AT Protocol Authentication
+
+SynthChat supports federated authentication via the [AT Protocol](https://atproto.com/) (used by Bluesky):
+
+- **Decentralized Identity (DID)**: Users are identified by unique DIDs
+- **Handles**: Human-readable identifiers (e.g., `user.bsky.social`)
+- **App Passwords**: Recommended for third-party app authentication
+- **Account Linking**: Link Bluesky accounts to existing local accounts
+
+#### Using Bluesky Login
+
+1. On the login screen, tap "Bluesky" in the login mode toggle
+2. Enter your Bluesky handle (e.g., `yourname.bsky.social`)
+3. Enter your **App Password** (not your main password)
+   - Create an App Password in Bluesky → Settings → App Passwords
+4. Tap "Sign In with Bluesky"
+
+#### Federated Server Support
+
+The AT Protocol supports federated personal data servers (PDS). While Bluesky's `bsky.social` is the default, the architecture allows for self-hosted or alternative PDS servers.
 
 ## License
 

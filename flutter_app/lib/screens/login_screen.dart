@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
+  bool _showBlueskyLogin = false;
 
   @override
   void initState() {
@@ -63,6 +64,40 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _errorMessage = message);
       }
     }
+  }
+
+  Future<void> _loginWithBluesky() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final auth = context.read<AuthService>();
+    final (success, message) = await auth.loginWithBluesky(
+      _usernameController.text.trim(),
+      _passwordController.text,
+    );
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+
+      if (success) {
+        Navigator.pushReplacementNamed(context, '/characters');
+      } else {
+        setState(() => _errorMessage = message);
+      }
+    }
+  }
+
+  void _toggleLoginMode() {
+    setState(() {
+      _showBlueskyLogin = !_showBlueskyLogin;
+      _errorMessage = null;
+      _usernameController.clear();
+      _passwordController.clear();
+    });
   }
 
   @override
@@ -132,17 +167,29 @@ class _LoginScreenState extends State<LoginScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Username field
+          // Login mode toggle
+          _buildLoginModeToggle(),
+          const SizedBox(height: 24),
+          // Username/Handle field
           TextFormField(
             controller: _usernameController,
-            decoration: const InputDecoration(
-              labelText: 'Username or Email',
-              prefixIcon: Icon(Icons.person_outline),
+            decoration: InputDecoration(
+              labelText: _showBlueskyLogin 
+                  ? 'Bluesky Handle (e.g., user.bsky.social)'
+                  : 'Username or Email',
+              prefixIcon: Icon(_showBlueskyLogin 
+                  ? Icons.alternate_email 
+                  : Icons.person_outline),
+              hintText: _showBlueskyLogin 
+                  ? 'yourname.bsky.social' 
+                  : null,
             ),
             textInputAction: TextInputAction.next,
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please enter your username or email';
+                return _showBlueskyLogin 
+                    ? 'Please enter your Bluesky handle'
+                    : 'Please enter your username or email';
               }
               return null;
             },
@@ -152,7 +199,7 @@ class _LoginScreenState extends State<LoginScreen> {
           TextFormField(
             controller: _passwordController,
             decoration: InputDecoration(
-              labelText: 'Password',
+              labelText: _showBlueskyLogin ? 'App Password' : 'Password',
               prefixIcon: const Icon(Icons.lock_outline),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -162,13 +209,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   setState(() => _obscurePassword = !_obscurePassword);
                 },
               ),
+              helperText: _showBlueskyLogin 
+                  ? 'Use an App Password from Settings → App Passwords'
+                  : null,
+              helperMaxLines: 2,
             ),
             obscureText: _obscurePassword,
             textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _login(),
+            onFieldSubmitted: (_) => _showBlueskyLogin ? _loginWithBluesky() : _login(),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please enter your password';
+                return _showBlueskyLogin 
+                    ? 'Please enter your app password'
+                    : 'Please enter your password';
               }
               return null;
             },
@@ -202,7 +255,14 @@ class _LoginScreenState extends State<LoginScreen> {
           SizedBox(
             height: 52,
             child: ElevatedButton(
-              onPressed: _isLoading ? null : _login,
+              onPressed: _isLoading 
+                  ? null 
+                  : (_showBlueskyLogin ? _loginWithBluesky : _login),
+              style: _showBlueskyLogin 
+                  ? ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0085FF), // Bluesky blue
+                    )
+                  : null,
               child: _isLoading
                   ? const SizedBox(
                       width: 24,
@@ -212,17 +272,101 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : const Row(
+                  : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.login),
-                        SizedBox(width: 8),
-                        Text('Sign In'),
+                        Icon(_showBlueskyLogin ? Icons.cloud : Icons.login),
+                        const SizedBox(width: 8),
+                        Text(_showBlueskyLogin 
+                            ? 'Sign In with Bluesky' 
+                            : 'Sign In'),
                       ],
                     ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLoginModeToggle() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildModeButton(
+              'Local Account',
+              Icons.person,
+              !_showBlueskyLogin,
+              () => setState(() {
+                _showBlueskyLogin = false;
+                _errorMessage = null;
+              }),
+            ),
+          ),
+          Expanded(
+            child: _buildModeButton(
+              'Bluesky',
+              Icons.cloud,
+              _showBlueskyLogin,
+              () => setState(() {
+                _showBlueskyLogin = true;
+                _errorMessage = null;
+              }),
+              color: const Color(0xFF0085FF),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModeButton(
+    String label, 
+    IconData icon, 
+    bool isSelected, 
+    VoidCallback onTap, {
+    Color? color,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? (color ?? AppColors.primary).withOpacity(0.2)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: isSelected 
+                  ? (color ?? AppColors.primary) 
+                  : AppColors.textMuted,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                color: isSelected 
+                    ? (color ?? AppColors.primary) 
+                    : AppColors.textMuted,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -262,6 +406,12 @@ class _LoginScreenState extends State<LoginScreen> {
           Icons.psychology,
           'Evolving Personalities',
           'Characters remember and grow',
+        ),
+        const SizedBox(height: 16),
+        _buildFeatureItem(
+          Icons.language,
+          'Bluesky Integration',
+          'Federated login via AT Protocol',
         ),
       ],
     );

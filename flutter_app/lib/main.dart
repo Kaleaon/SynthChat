@@ -10,6 +10,7 @@ import 'services/room_service.dart';
 import 'services/memory_branch_service.dart';
 import 'services/document_parser_service.dart';
 import 'services/personality_evolution_service.dart';
+import 'services/bluesky_auth_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/characters_screen.dart';
@@ -27,6 +28,13 @@ void main() async {
   final dbService = DatabaseService();
   await dbService.init();
   
+  // Initialize Bluesky auth service
+  final blueskyAuth = BlueskyAuthService(dbService);
+  
+  // Initialize auth service and connect Bluesky auth
+  final authService = AuthService(dbService);
+  authService.setBlueskyAuth(blueskyAuth);
+  
   // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -41,7 +49,10 @@ void main() async {
     MultiProvider(
       providers: [
         Provider<DatabaseService>.value(value: dbService),
-        ChangeNotifierProvider(create: (_) => AuthService(dbService)),
+        // Bluesky AT Protocol authentication
+        ChangeNotifierProvider<BlueskyAuthService>.value(value: blueskyAuth),
+        // Main auth service with Bluesky integration
+        ChangeNotifierProvider<AuthService>.value(value: authService),
         ChangeNotifierProxyProvider<AuthService, CharacterService>(
           create: (context) => CharacterService(dbService),
           update: (context, auth, previous) {

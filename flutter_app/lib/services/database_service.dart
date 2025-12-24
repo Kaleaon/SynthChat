@@ -27,14 +27,14 @@ class DatabaseService {
 
     _database = await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    // Users table with salt for PBKDF2
+    // Users table with salt for PBKDF2 and Bluesky AT Protocol support
     await db.execute('''
       CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,6 +42,9 @@ class DatabaseService {
         email TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
         password_salt TEXT NOT NULL,
+        bluesky_did TEXT,
+        bluesky_handle TEXT,
+        auth_provider TEXT DEFAULT 'local',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         last_login TEXT
       )
@@ -155,6 +158,23 @@ class DatabaseService {
         FOREIGN KEY (character_id) REFERENCES characters (id) ON DELETE CASCADE
       )
     ''');
+
+    // Room invitations for user invites
+    await db.execute('''
+      CREATE TABLE room_invitations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        room_id INTEGER NOT NULL,
+        inviter_id INTEGER NOT NULL,
+        invitee_id INTEGER NOT NULL,
+        status TEXT DEFAULT 'pending',
+        message TEXT DEFAULT '',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        responded_at TEXT,
+        FOREIGN KEY (room_id) REFERENCES rooms (id) ON DELETE CASCADE,
+        FOREIGN KEY (inviter_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (invitee_id) REFERENCES users (id) ON DELETE CASCADE
+      )
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -220,6 +240,27 @@ class DatabaseService {
           trait_changes TEXT DEFAULT '{}',
           mood_changes TEXT DEFAULT '{}',
           created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      ''');
+    }
+
+    if (oldVersion < 3) {
+      // Add Bluesky AT Protocol fields to users table
+      await db.execute('ALTER TABLE users ADD COLUMN bluesky_did TEXT');
+      await db.execute('ALTER TABLE users ADD COLUMN bluesky_handle TEXT');
+      await db.execute('ALTER TABLE users ADD COLUMN auth_provider TEXT DEFAULT "local"');
+
+      // Create room invitations table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS room_invitations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          room_id INTEGER NOT NULL,
+          inviter_id INTEGER NOT NULL,
+          invitee_id INTEGER NOT NULL,
+          status TEXT DEFAULT 'pending',
+          message TEXT DEFAULT '',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          responded_at TEXT
         )
       ''');
     }
@@ -991,6 +1032,293 @@ class DatabaseService {
       return true;
     } catch (e) {
       print('Error updating character memory context: $e');
+      return false;
+    }
+  }
+
+  // ==================== Room Invitation Methods ====================
+
+  /// Create a room invitation
+  Future<Map<String, dynamic>?> createRoomInvitation({
+    required int roomId,
+    required int inviterId,
+    required int inviteeId,
+    String message = '',
+  }) async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+
+    try {
+      // Check if invitation already exists
+      final existing = await db.query(
+        'room_invitations',
+        where: 'room_id = ? AND invitee_id = ? AND status = ?',
+        whereArgs: [roomId, inviteeId, 'pending'],
+      );
+      if (existing.isNotEmpty) {
+        return null; // Already invited
+      }
+
+      final id = await db.insert('room_invitations', {
+        'room_id': roomId,
+        'inviter_id': inviterId,
+        'invitee_id': inviteeId,
+        'message': message,
+        'status': 'pending',
+        'created_at': now,
+      });
+
+      return await getRoomInvitation(id);
+    } catch (e) {
+      print('Error creating room invitation: $e');
+      return null;
+    }
+  }
+
+  /// Get a room invitation by ID
+  Future<Map<String, dynamic>?> getRoomInvitation(int id) async {
+    final db = await database;
+    final results = await db.rawQuery('''
+      SELECT ri.*, r.name as room_name, 
+             inviter.username as inviter_username,
+             invitee.username as invitee_username
+      FROM room_invitations ri
+      LEFT JOIN rooms r ON ri.room_id = r.id
+      LEFT JOIN users inviter ON ri.inviter_id = inviter.id
+      LEFT JOIN users invitee ON ri.invitee_id = invitee.id
+      WHERE ri.id = ?
+    ''', [id]);
+    return results.isNotEmpty ? results.first : null;
+  }
+
+  /// Get pending invitations for a user (invitations they received)
+  Future<List<Map<String, dynamic>>> getPendingInvitations(int userId) async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT ri.*, r.name as room_name, 
+             inviter.username as inviter_username
+      FROM room_invitations ri
+      LEFT JOIN rooms r ON ri.room_id = r.id
+      LEFT JOIN users inviter ON ri.inviter_id = inviter.id
+      WHERE ri.invitee_id = ? AND ri.status = 'pending'
+      ORDER BY ri.created_at DESC
+    ''', [userId]);
+  }
+
+  /// Get sent invitations for a user
+  Future<List<Map<String, dynamic>>> getSentInvitations(int userId) async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT ri.*, r.name as room_name, 
+             invitee.username as invitee_username
+      FROM room_invitations ri
+      LEFT JOIN rooms r ON ri.room_id = r.id
+      LEFT JOIN users invitee ON ri.invitee_id = invitee.id
+      WHERE ri.inviter_id = ?
+      ORDER BY ri.created_at DESC
+    ''', [userId]);
+  }
+
+  /// Accept a room invitation
+  Future<bool> acceptRoomInvitation(int invitationId) async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+
+    try {
+      final invitation = await getRoomInvitation(invitationId);
+      if (invitation == null || invitation['status'] != 'pending') {
+        return false;
+      }
+
+      // Update invitation status
+      await db.update(
+        'room_invitations',
+        {'status': 'accepted', 'responded_at': now},
+        where: 'id = ?',
+        whereArgs: [invitationId],
+      );
+
+      // Add user as room participant
+      await addRoomParticipant(
+        roomId: invitation['room_id'] as int,
+        userId: invitation['invitee_id'] as int,
+      );
+
+      return true;
+    } catch (e) {
+      print('Error accepting room invitation: $e');
+      return false;
+    }
+  }
+
+  /// Reject a room invitation
+  Future<bool> rejectRoomInvitation(int invitationId) async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+
+    try {
+      await db.update(
+        'room_invitations',
+        {'status': 'rejected', 'responded_at': now},
+        where: 'id = ?',
+        whereArgs: [invitationId],
+      );
+      return true;
+    } catch (e) {
+      print('Error rejecting room invitation: $e');
+      return false;
+    }
+  }
+
+  /// Cancel a room invitation (by inviter)
+  Future<bool> cancelRoomInvitation(int invitationId) async {
+    final db = await database;
+
+    try {
+      await db.delete(
+        'room_invitations',
+        where: 'id = ?',
+        whereArgs: [invitationId],
+      );
+      return true;
+    } catch (e) {
+      print('Error cancelling room invitation: $e');
+      return false;
+    }
+  }
+
+  /// Get invitations for a room (sent by owner/participants)
+  Future<List<Map<String, dynamic>>> getRoomInvitations(int roomId) async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT ri.*, invitee.username as invitee_username
+      FROM room_invitations ri
+      LEFT JOIN users invitee ON ri.invitee_id = invitee.id
+      WHERE ri.room_id = ?
+      ORDER BY ri.created_at DESC
+    ''', [roomId]);
+  }
+
+  /// Find user by username or email (for inviting)
+  Future<Map<String, dynamic>?> findUserByUsernameOrEmail(String query) async {
+    final db = await database;
+    final normalizedQuery = query.trim().toLowerCase();
+    
+    final results = await db.query(
+      'users',
+      where: 'LOWER(username) = ? OR LOWER(email) = ?',
+      whereArgs: [normalizedQuery, normalizedQuery],
+    );
+    return results.isNotEmpty ? results.first : null;
+  }
+
+  // ==================== Bluesky AT Protocol Methods ====================
+
+  /// Create or update a user with Bluesky credentials
+  Future<Map<String, dynamic>?> createBlueskyUser({
+    required String blueskyDid,
+    required String blueskyHandle,
+    String? email,
+  }) async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+
+    try {
+      // Check if user with this DID already exists
+      final existing = await db.query(
+        'users',
+        where: 'bluesky_did = ?',
+        whereArgs: [blueskyDid],
+      );
+
+      if (existing.isNotEmpty) {
+        // Update existing user
+        await db.update(
+          'users',
+          {
+            'bluesky_handle': blueskyHandle,
+            'last_login': now,
+          },
+          where: 'bluesky_did = ?',
+          whereArgs: [blueskyDid],
+        );
+        return await getUserByBlueskyDid(blueskyDid);
+      }
+
+      // Create new user with Bluesky credentials
+      // Use handle as username (with @bsky suffix to avoid collisions)
+      final username = '${blueskyHandle.split('.').first}_bsky';
+      final userEmail = email ?? '$blueskyHandle@bsky.social';
+
+      final id = await db.insert('users', {
+        'username': username,
+        'email': userEmail,
+        'password_hash': '', // No password for Bluesky users
+        'password_salt': '',
+        'bluesky_did': blueskyDid,
+        'bluesky_handle': blueskyHandle,
+        'auth_provider': 'bluesky',
+        'created_at': now,
+        'last_login': now,
+      });
+
+      return await getUserById(id);
+    } catch (e) {
+      print('Error creating Bluesky user: $e');
+      return null;
+    }
+  }
+
+  /// Get user by Bluesky DID
+  Future<Map<String, dynamic>?> getUserByBlueskyDid(String did) async {
+    final db = await database;
+    final results = await db.query(
+      'users',
+      where: 'bluesky_did = ?',
+      whereArgs: [did],
+    );
+    return results.isNotEmpty ? results.first : null;
+  }
+
+  /// Link Bluesky account to existing user
+  Future<bool> linkBlueskyAccount(int userId, String blueskyDid, String blueskyHandle) async {
+    final db = await database;
+
+    try {
+      await db.update(
+        'users',
+        {
+          'bluesky_did': blueskyDid,
+          'bluesky_handle': blueskyHandle,
+        },
+        where: 'id = ?',
+        whereArgs: [userId],
+      );
+      return true;
+    } catch (e) {
+      print('Error linking Bluesky account: $e');
+      return false;
+    }
+  }
+
+  /// Unlink Bluesky account from user
+  Future<bool> unlinkBlueskyAccount(int userId) async {
+    final db = await database;
+
+    try {
+      await db.update(
+        'users',
+        {
+          'bluesky_did': null,
+          'bluesky_handle': null,
+          'auth_provider': 'local',
+        },
+        where: 'id = ?',
+        whereArgs: [userId],
+      );
+      return true;
+    } catch (e) {
+      print('Error unlinking Bluesky account: $e');
       return false;
     }
   }
