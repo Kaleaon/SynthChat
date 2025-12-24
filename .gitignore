@@ -15,7 +15,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# lib/ is used by Flutter, so only ignore root-level Python lib
+/lib/
 lib64/
 parts/
 sdist/
@@ -26,6 +27,15 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# Flutter
+flutter_app/.dart_tool/
+flutter_app/build/
+flutter_app/.packages
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+flutter_app/*.iml
+flutter_app/.metadata
 
 # Virtual environments
 venv/
@@ -48,3 +58,13 @@ Thumbs.db
 # Test data
 test_data/
 *.log
+
+# Web application
+instance/
+*.db
+synthchat.db
+
+# Uploaded avatars (keep default)
+web/static/avatars/*
+!web/static/avatars/default.png
+!web/static/avatars/.gitkeep

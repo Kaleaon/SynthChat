@@ -4,15 +4,19 @@ A Silly Tavern-style multi-agent LLM manager with Google Drive integration for p
 
 ## Features
 
-- 🤖 **Multiple AI Agents**: Create and manage multiple AI agents, each with unique personalities and configurations
-- 💾 **Google Drive Integration**: Each agent gets their own Google Drive folder with:
+- 🤖 **Multiple AI Characters**: Create and manage multiple AI characters, each with unique personalities and configurations
+- 🎨 **Beautiful Web Interface**: Silly Tavern-style chat UI with character cards and chat bubbles
+- 🔐 **User Authentication**: Secure login system to protect your characters
+- 🖼️ **Avatar Support**: Upload custom avatars or generate them procedurally/with AI
+- 💾 **Google Drive Integration**: Each character gets their own Google Drive folder with:
   - Memory document for interactions
   - Private thoughts document
   - Character development spreadsheet
 - 🧠 **Persistent Memory**: All interactions are automatically saved to Google Drive
-- 💭 **Thought Patterns**: Agents maintain internal thought processes that are logged separately
+- 💭 **Thought Patterns**: Characters maintain internal thought processes that are logged separately
 - 📊 **Character Development Tracking**: Track character traits and evolution over time
 - 🔌 **LLM Provider Agnostic**: Works with OpenAI and compatible APIs
+- 📱 **Responsive Design**: Works on desktop and mobile devices
 
 ## Installation
 
@@ -44,7 +48,26 @@ cp .env.example .env
 
 ## Quick Start
 
-### Run the Example Script
+### Android App (Recommended)
+
+The SynthChat Android app provides a native mobile experience:
+
+```bash
+cd flutter_app
+flutter pub get
+flutter run
+```
+
+Features:
+- Create and manage multiple AI characters
+- Beautiful Silly Tavern-style dark theme
+- Chat with message bubbles and emotions
+- Local SQLite storage for offline access
+- OpenAI integration for intelligent responses
+
+See `flutter_app/README.md` for detailed Android setup instructions.
+
+### Run the Example Script (Python CLI)
 
 ```bash
 python example.py
@@ -56,13 +79,13 @@ This will:
 - Show how memories are saved to Google Drive
 - Display agent summaries
 
-### Interactive Chat
+### Interactive CLI Chat
 
 ```bash
 python interactive_chat.py
 ```
 
-This launches an interactive chat interface where you can:
+This launches an interactive command-line interface where you can:
 - Select which agent to chat with
 - Have conversations that are automatically saved
 - Add character traits
@@ -146,13 +169,23 @@ summaries = manager.get_all_summaries()
 
 ```
 SynthChat/
-├── synthchat/
+├── flutter_app/                 # Android Application (Flutter)
+│   ├── lib/
+│   │   ├── main.dart            # App entry point
+│   │   ├── models/              # Data models
+│   │   ├── services/            # Business logic
+│   │   ├── screens/             # UI screens
+│   │   ├── widgets/             # Reusable widgets
+│   │   └── theme/               # App theming
+│   ├── pubspec.yaml             # Flutter dependencies
+│   └── README.md                # Android app documentation
+├── synthchat/                   # Core Python library
 │   ├── __init__.py              # Package initialization
 │   ├── agent.py                 # Agent class with memory and personality
 │   ├── agent_manager.py         # Manages multiple agents
 │   └── google_drive_storage.py  # Google Drive integration
 ├── example.py                   # Example usage script
-├── interactive_chat.py          # Interactive chat interface
+├── interactive_chat.py          # Interactive CLI chat
 ├── requirements.txt             # Python dependencies
 ├── .env.example                 # Environment variables template
 └── README.md                    # This file
@@ -194,20 +227,63 @@ Agents can develop over time through:
 
 ### Environment Variables
 
+#### Google Drive Integration
 - `GOOGLE_CREDENTIALS_PATH`: Path to Google API credentials (default: `credentials.json`)
 - `GOOGLE_TOKEN_PATH`: Path to token file (default: `token.json`)
-- `OPENAI_API_KEY`: Your OpenAI API key (optional)
 - `AGENT_MEMORY_FOLDER_ID`: Parent folder ID in Google Drive (optional)
 
-### Agent Configuration
+#### LLM Configuration
+- `OPENAI_API_KEY`: Your OpenAI API key (required for LLM responses)
 
-Each agent can be configured with:
-- `name`: Unique identifier
-- `personality`: Personality description
+#### Web Application
+- `SECRET_KEY`: Flask secret key for sessions (**MUST change in production!**)
+- `DATABASE_URL`: Database connection URL (default: `sqlite:///synthchat.db`)
+- `HOST`: Server host (default: `0.0.0.0`)
+- `PORT`: Server port (default: `5000`)
+- `FLASK_DEBUG`: Enable debug mode (default: `false` - **never enable in production**)
+- `CORS_ALLOWED_ORIGINS`: Allowed CORS origins (comma-separated, restrict in production)
+
+### Character Configuration
+
+Each character can be configured with:
+- `name`: Character's name
+- `description`: Brief description
+- `personality`: Personality traits and behavior
 - `system_prompt`: System prompt for LLM
+- `greeting`: First message when starting a conversation
+- `avatar_url`: Path to character's avatar image
 - `model`: LLM model to use (default: `gpt-3.5-turbo`)
 - `temperature`: Response creativity (0.0-1.0)
 - `max_tokens`: Maximum response length
+
+## API Reference
+
+The web application exposes a REST API:
+
+### Authentication
+- `POST /api/auth/register` - Create new account
+- `POST /api/auth/login` - Log in
+- `POST /api/auth/logout` - Log out
+- `GET /api/auth/me` - Get current user
+
+### Characters
+- `GET /api/characters` - List all characters
+- `POST /api/characters` - Create character
+- `GET /api/characters/:id` - Get character details
+- `PUT /api/characters/:id` - Update character
+- `DELETE /api/characters/:id` - Delete character
+- `POST /api/characters/:id/traits` - Add character trait
+
+### Conversations
+- `GET /api/characters/:id/conversations` - List conversations
+- `POST /api/characters/:id/conversations` - Create conversation
+- `GET /api/conversations/:id` - Get conversation with messages
+- `DELETE /api/conversations/:id` - Delete conversation
+- `POST /api/conversations/:id/messages` - Send message
+
+### Avatars
+- `POST /api/upload/avatar` - Upload avatar image
+- `POST /api/generate/avatar` - Generate avatar (procedural or AI)
 
 ## Examples
 
@@ -277,6 +353,58 @@ Contributions are welcome! Please feel free to submit pull requests or open issu
 ## License
 
 See LICENSE file for details.
+
+## Android App
+
+The Flutter Android app provides a native mobile experience with:
+
+### Core Features (V1)
+- **Character Cards**: Grid of character cards with avatars
+- **Chat Bubbles**: Beautiful message bubbles with emotions
+- **Local Storage**: SQLite database for offline access
+- **Secure Auth**: Password hashing with PBKDF2 (100,000 iterations, per-user salt)
+- **Dark Theme**: Silly Tavern-inspired purple/dark blue theme
+- **LLM Settings**: Configure model, temperature, and max tokens
+
+### V2: Room Sharing & Collaborative Interactions
+- Create public or private rooms for group conversations
+- Add multiple characters to a room
+- Collaborative character interactions
+- Room participant management
+
+### V3: Memory Branching & Forking
+- Fork conversations for private memory branches
+- Maintain separate memory contexts
+- Merge branches back to share memories with main context
+- Branch hierarchy visualization
+
+### V4: AI-Powered Document Parsing
+- Import character definitions from documents (.md, .txt, .json, .html)
+- AI extraction of character traits, personality, and backstory
+- Automatic system prompt generation
+- Character creation from parsed data
+
+### V5: Personality Evolution & Mood Tracking
+- Real-time mood tracking with emoji visualization
+- Trait evolution based on conversation analysis
+- Internal reasoning/thought pattern display
+- Personality event history
+- Automatic mood and trait changes from interactions
+
+### Security Features
+- **PBKDF2 Password Hashing**: Secure password storage with 100,000 iterations
+- **Per-User Salt**: Unique cryptographic salt for each user
+- **Constant-Time Comparison**: Protection against timing attacks
+- **Legacy Migration**: Automatic upgrade from legacy hashes on login
+
+### Building the APK
+
+```bash
+cd flutter_app
+flutter build apk --release
+```
+
+The APK will be at `flutter_app/build/app/outputs/flutter-apk/app-release.apk`
 
 ## Acknowledgments
 
