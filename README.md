@@ -48,20 +48,26 @@ cp .env.example .env
 
 ## Quick Start
 
-### Web Interface (Recommended)
+### Android App (Recommended)
+
+The SynthChat Android app provides a native mobile experience:
 
 ```bash
-python run_web.py
+cd flutter_app
+flutter pub get
+flutter run
 ```
 
-This launches the Silly Tavern-style web interface at `http://localhost:5000` where you can:
-- Create an account and log in securely
-- Create AI characters with custom personalities and avatars
-- Chat with characters in a beautiful bubble interface
-- View character information and traits
-- All conversations are automatically saved to Google Drive
+Features:
+- Create and manage multiple AI characters
+- Beautiful Silly Tavern-style dark theme
+- Chat with message bubbles and emotions
+- Local SQLite storage for offline access
+- OpenAI integration for intelligent responses
 
-### Run the Example Script
+See `flutter_app/README.md` for detailed Android setup instructions.
+
+### Run the Example Script (Python CLI)
 
 ```bash
 python example.py
@@ -163,28 +169,21 @@ summaries = manager.get_all_summaries()
 
 ```
 SynthChat/
-├── synthchat/                   # Core library
+├── flutter_app/                 # Android Application (Flutter)
+│   ├── lib/
+│   │   ├── main.dart            # App entry point
+│   │   ├── models/              # Data models
+│   │   ├── services/            # Business logic
+│   │   ├── screens/             # UI screens
+│   │   ├── widgets/             # Reusable widgets
+│   │   └── theme/               # App theming
+│   ├── pubspec.yaml             # Flutter dependencies
+│   └── README.md                # Android app documentation
+├── synthchat/                   # Core Python library
 │   ├── __init__.py              # Package initialization
 │   ├── agent.py                 # Agent class with memory and personality
 │   ├── agent_manager.py         # Manages multiple agents
 │   └── google_drive_storage.py  # Google Drive integration
-├── web/                         # Web application
-│   ├── __init__.py              # Web package initialization
-│   ├── app.py                   # Flask application
-│   ├── models.py                # Database models
-│   ├── avatar_generator.py      # Avatar generation utilities
-│   ├── templates/               # HTML templates
-│   │   ├── base.html
-│   │   ├── login.html
-│   │   ├── register.html
-│   │   ├── chat.html
-│   │   └── characters.html
-│   └── static/                  # Static assets
-│       ├── css/style.css        # Silly Tavern-style CSS
-│       ├── js/app.js            # Core JavaScript
-│       ├── js/chat.js           # Chat functionality
-│       └── avatars/             # Uploaded/generated avatars
-├── run_web.py                   # Web server entry point
 ├── example.py                   # Example usage script
 ├── interactive_chat.py          # Interactive CLI chat
 ├── requirements.txt             # Python dependencies
@@ -354,24 +353,26 @@ Contributions are welcome! Please feel free to submit pull requests or open issu
 
 See LICENSE file for details.
 
-## Web Interface
+## Android App
 
-The web interface provides a modern, Silly Tavern-inspired experience:
+The Flutter Android app provides a native mobile experience with:
 
 ### Features
-- **Character Cards**: Visual character selection in a sidebar
-- **Chat Bubbles**: Clean message display with avatars
-- **Avatar Generation**: Generate unique avatars procedurally from character names
-- **Character Traits**: Track and display character development
-- **Google Drive Status**: See connection status for cloud memory
-- **Responsive Design**: Works on both desktop and mobile
+- **Character Cards**: Grid of character cards with avatars
+- **Chat Bubbles**: Beautiful message bubbles with emotions
+- **Local Storage**: SQLite database for offline access
+- **Secure Auth**: Password hashing with SHA-256
+- **Dark Theme**: Silly Tavern-inspired purple/dark blue theme
+- **LLM Settings**: Configure model, temperature, and max tokens
 
-### Screenshots
-The interface includes:
-- Login/Register pages with feature highlights
-- Main chat view with character sidebar
-- Character creation modal with avatar upload/generation
-- Character info panel with traits display
+### Building the APK
+
+```bash
+cd flutter_app
+flutter build apk --release
+```
+
+The APK will be at `flutter_app/build/app/outputs/flutter-apk/app-release.apk`
 
 ## Acknowledgments
 
