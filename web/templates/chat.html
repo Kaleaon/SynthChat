@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}Chat - SynthChat{% endblock %}
+
+{% block body %}
+<div class="app-container">
+    <!-- Sidebar with character cards -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-small">
+                <span class="material-icons">smart_toy</span>
+                <span>SynthChat</span>
+            </div>
+            <button class="btn btn-icon" id="toggle-sidebar" title="Toggle Sidebar">
+                <span class="material-icons">menu</span>
+            </button>
+        </div>
+        
+        <div class="sidebar-section">
+            <div class="section-header">
+                <h3>Characters</h3>
+                <button class="btn btn-icon" id="add-character-btn" title="Add Character">
+                    <span class="material-icons">add</span>
+                </button>
+            </div>
+            <div class="character-list" id="character-list">
+                <!-- Characters will be loaded here -->
+            </div>
+        </div>
+        
+        <div class="sidebar-section conversations-section" id="conversations-section" style="display: none;">
+            <div class="section-header">
+                <h3>Conversations</h3>
+                <button class="btn btn-icon" id="new-conversation-btn" title="New Conversation">
+                    <span class="material-icons">add_comment</span>
+                </button>
+            </div>
+            <div class="conversation-list" id="conversation-list">
+                <!-- Conversations will be loaded here -->
+            </div>
+        </div>
+        
+        <div class="sidebar-footer">
+            <div class="user-info" id="user-info">
+                <span class="material-icons">account_circle</span>
+                <span class="username">Loading...</span>
+            </div>
+            <button class="btn btn-icon" id="logout-btn" title="Logout">
+                <span class="material-icons">logout</span>
+            </button>
+        </div>
+    </aside>
+    
+    <!-- Main chat area -->
+    <main class="main-content">
+        <!-- Welcome/Empty state -->
+        <div class="empty-state" id="empty-state">
+            <div class="empty-content">
+                <span class="material-icons">forum</span>
+                <h2>Welcome to SynthChat</h2>
+                <p>Select a character to start chatting, or create a new one!</p>
+                <button class="btn btn-primary" id="create-first-character">
+                    <span class="material-icons">add</span>
+                    Create Your First Character
+                </button>
+            </div>
+        </div>
+        
+        <!-- Chat interface -->
+        <div class="chat-container" id="chat-container" style="display: none;">
+            <!-- Chat header -->
+            <div class="chat-header">
+                <div class="character-info">
+                    <img src="/static/avatars/default.png" alt="Avatar" class="avatar" id="current-avatar">
+                    <div class="character-details">
+                        <h2 id="current-character-name">Character Name</h2>
+                        <span class="character-status" id="current-character-status">Online</span>
+                    </div>
+                </div>
+                <div class="chat-actions">
+                    <button class="btn btn-icon" id="edit-character-btn" title="Edit Character">
+                        <span class="material-icons">edit</span>
+                    </button>
+                    <button class="btn btn-icon" id="character-info-btn" title="Character Info">
+                        <span class="material-icons">info</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Messages area -->
+            <div class="messages-container" id="messages-container">
+                <div class="messages" id="messages">
+                    <!-- Messages will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Input area -->
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <textarea 
+                        id="message-input" 
+                        placeholder="Type your message..."
+                        rows="1"
+                    ></textarea>
+                    <button class="btn btn-primary btn-send" id="send-btn" title="Send Message">
+                        <span class="material-icons">send</span>
+                    </button>
+                </div>
+                <div class="input-info">
+                    <span>Press Enter to send, Shift+Enter for new line</span>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Character Creation/Edit Modal -->
+<div class="modal" id="character-modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modal-title">Create Character</h2>
+            <button class="btn btn-icon modal-close">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+        <form id="character-form" class="modal-body">
+            <div class="form-row">
+                <div class="avatar-upload">
+                    <img src="/static/avatars/default.png" alt="Avatar" id="avatar-preview" class="avatar-large">
+                    <input type="file" id="avatar-input" accept="image/*" style="display: none;">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
+                        <button type="button" class="btn btn-secondary" id="upload-avatar-btn">
+                            <span class="material-icons">upload</span>
+                            Upload
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="generate-avatar-btn">
+                            <span class="material-icons">auto_awesome</span>
+                            Generate
+                        </button>
+                    </div>
+                    <input type="hidden" id="avatar-url" name="avatar_url" value="/static/avatars/default.png">
+                </div>
+                
+                <div class="form-fields">
+                    <div class="form-group">
+                        <label for="char-name">Name</label>
+                        <input type="text" id="char-name" name="name" required placeholder="Character name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="char-description">Description</label>
+                        <input type="text" id="char-description" name="description" placeholder="Brief description">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="char-personality">Personality</label>
+                <textarea id="char-personality" name="personality" rows="3" 
+                    placeholder="Describe the character's personality, traits, and behavior..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="char-system-prompt">System Prompt</label>
+                <textarea id="char-system-prompt" name="system_prompt" rows="4"
+                    placeholder="Instructions for how the AI should behave as this character..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="char-greeting">Greeting Message</label>
+                <textarea id="char-greeting" name="greeting" rows="2"
+                    placeholder="The first message the character sends when starting a conversation..."></textarea>
+            </div>
+            
+            <div class="form-row form-row-3">
+                <div class="form-group">
+                    <label for="char-model">Model</label>
+                    <select id="char-model" name="model">
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                        <option value="gpt-4">GPT-4</option>
+                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                        <option value="gpt-4o">GPT-4o</option>
+                        <option value="gpt-4o-mini">GPT-4o Mini</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="char-temperature">Temperature: <span id="temp-value">0.7</span></label>
+                    <input type="range" id="char-temperature" name="temperature" 
+                        min="0" max="1" step="0.1" value="0.7">
+                </div>
+                
+                <div class="form-group">
+                    <label for="char-max-tokens">Max Tokens</label>
+                    <input type="number" id="char-max-tokens" name="max_tokens" 
+                        value="500" min="100" max="4000">
+                </div>
+            </div>
+            
+            <input type="hidden" id="char-id" value="">
+        </form>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+            <button type="button" class="btn btn-danger" id="delete-character-btn" style="display: none;">
+                <span class="material-icons">delete</span>
+                Delete
+            </button>
+            <button type="submit" form="character-form" class="btn btn-primary" id="save-character-btn">
+                <span class="material-icons">save</span>
+                Save Character
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Character Info Modal -->
+<div class="modal" id="character-info-modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content modal-medium">
+        <div class="modal-header">
+            <h2>Character Details</h2>
+            <button class="btn btn-icon modal-close">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+        <div class="modal-body" id="character-info-content">
+            <!-- Character info will be loaded here -->
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary modal-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/chat.js"></script>
+{% endblock %}

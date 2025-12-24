@@ -4,3 +4,20 @@ google-auth-oauthlib>=1.1.0
 openai>=1.0.0
 python-dotenv>=1.0.0
 pydantic>=2.0.0
+
+# Web framework
+flask>=3.0.0
+flask-login>=0.6.3
+flask-cors>=4.0.0
+flask-sqlalchemy>=3.1.1
+flask-bcrypt>=1.0.1
+flask-socketio>=5.3.6
+
+# Database
+sqlalchemy>=2.0.0
+
+# Utilities
+pillow>=10.0.0
+requests>=2.31.0
+python-socketio>=5.10.0
+eventlet>=0.34.0

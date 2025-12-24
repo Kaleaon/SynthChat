@@ -4,15 +4,19 @@ A Silly Tavern-style multi-agent LLM manager with Google Drive integration for p
 
 ## Features
 
-- 🤖 **Multiple AI Agents**: Create and manage multiple AI agents, each with unique personalities and configurations
-- 💾 **Google Drive Integration**: Each agent gets their own Google Drive folder with:
+- 🤖 **Multiple AI Characters**: Create and manage multiple AI characters, each with unique personalities and configurations
+- 🎨 **Beautiful Web Interface**: Silly Tavern-style chat UI with character cards and chat bubbles
+- 🔐 **User Authentication**: Secure login system to protect your characters
+- 🖼️ **Avatar Support**: Upload custom avatars or generate them procedurally/with AI
+- 💾 **Google Drive Integration**: Each character gets their own Google Drive folder with:
   - Memory document for interactions
   - Private thoughts document
   - Character development spreadsheet
 - 🧠 **Persistent Memory**: All interactions are automatically saved to Google Drive
-- 💭 **Thought Patterns**: Agents maintain internal thought processes that are logged separately
+- 💭 **Thought Patterns**: Characters maintain internal thought processes that are logged separately
 - 📊 **Character Development Tracking**: Track character traits and evolution over time
 - 🔌 **LLM Provider Agnostic**: Works with OpenAI and compatible APIs
+- 📱 **Responsive Design**: Works on desktop and mobile devices
 
 ## Installation
 
@@ -44,6 +48,19 @@ cp .env.example .env
 
 ## Quick Start
 
+### Web Interface (Recommended)
+
+```bash
+python run_web.py
+```
+
+This launches the Silly Tavern-style web interface at `http://localhost:5000` where you can:
+- Create an account and log in securely
+- Create AI characters with custom personalities and avatars
+- Chat with characters in a beautiful bubble interface
+- View character information and traits
+- All conversations are automatically saved to Google Drive
+
 ### Run the Example Script
 
 ```bash
@@ -56,13 +73,13 @@ This will:
 - Show how memories are saved to Google Drive
 - Display agent summaries
 
-### Interactive Chat
+### Interactive CLI Chat
 
 ```bash
 python interactive_chat.py
 ```
 
-This launches an interactive chat interface where you can:
+This launches an interactive command-line interface where you can:
 - Select which agent to chat with
 - Have conversations that are automatically saved
 - Add character traits
@@ -146,13 +163,30 @@ summaries = manager.get_all_summaries()
 
 ```
 SynthChat/
-├── synthchat/
+├── synthchat/                   # Core library
 │   ├── __init__.py              # Package initialization
 │   ├── agent.py                 # Agent class with memory and personality
 │   ├── agent_manager.py         # Manages multiple agents
 │   └── google_drive_storage.py  # Google Drive integration
+├── web/                         # Web application
+│   ├── __init__.py              # Web package initialization
+│   ├── app.py                   # Flask application
+│   ├── models.py                # Database models
+│   ├── avatar_generator.py      # Avatar generation utilities
+│   ├── templates/               # HTML templates
+│   │   ├── base.html
+│   │   ├── login.html
+│   │   ├── register.html
+│   │   ├── chat.html
+│   │   └── characters.html
+│   └── static/                  # Static assets
+│       ├── css/style.css        # Silly Tavern-style CSS
+│       ├── js/app.js            # Core JavaScript
+│       ├── js/chat.js           # Chat functionality
+│       └── avatars/             # Uploaded/generated avatars
+├── run_web.py                   # Web server entry point
 ├── example.py                   # Example usage script
-├── interactive_chat.py          # Interactive chat interface
+├── interactive_chat.py          # Interactive CLI chat
 ├── requirements.txt             # Python dependencies
 ├── .env.example                 # Environment variables template
 └── README.md                    # This file
@@ -194,20 +228,62 @@ Agents can develop over time through:
 
 ### Environment Variables
 
+#### Google Drive Integration
 - `GOOGLE_CREDENTIALS_PATH`: Path to Google API credentials (default: `credentials.json`)
 - `GOOGLE_TOKEN_PATH`: Path to token file (default: `token.json`)
-- `OPENAI_API_KEY`: Your OpenAI API key (optional)
 - `AGENT_MEMORY_FOLDER_ID`: Parent folder ID in Google Drive (optional)
 
-### Agent Configuration
+#### LLM Configuration
+- `OPENAI_API_KEY`: Your OpenAI API key (required for LLM responses)
 
-Each agent can be configured with:
-- `name`: Unique identifier
-- `personality`: Personality description
+#### Web Application
+- `SECRET_KEY`: Flask secret key for sessions (change in production!)
+- `DATABASE_URL`: Database connection URL (default: `sqlite:///synthchat.db`)
+- `HOST`: Server host (default: `0.0.0.0`)
+- `PORT`: Server port (default: `5000`)
+- `FLASK_DEBUG`: Enable debug mode (default: `true`)
+
+### Character Configuration
+
+Each character can be configured with:
+- `name`: Character's name
+- `description`: Brief description
+- `personality`: Personality traits and behavior
 - `system_prompt`: System prompt for LLM
+- `greeting`: First message when starting a conversation
+- `avatar_url`: Path to character's avatar image
 - `model`: LLM model to use (default: `gpt-3.5-turbo`)
 - `temperature`: Response creativity (0.0-1.0)
 - `max_tokens`: Maximum response length
+
+## API Reference
+
+The web application exposes a REST API:
+
+### Authentication
+- `POST /api/auth/register` - Create new account
+- `POST /api/auth/login` - Log in
+- `POST /api/auth/logout` - Log out
+- `GET /api/auth/me` - Get current user
+
+### Characters
+- `GET /api/characters` - List all characters
+- `POST /api/characters` - Create character
+- `GET /api/characters/:id` - Get character details
+- `PUT /api/characters/:id` - Update character
+- `DELETE /api/characters/:id` - Delete character
+- `POST /api/characters/:id/traits` - Add character trait
+
+### Conversations
+- `GET /api/characters/:id/conversations` - List conversations
+- `POST /api/characters/:id/conversations` - Create conversation
+- `GET /api/conversations/:id` - Get conversation with messages
+- `DELETE /api/conversations/:id` - Delete conversation
+- `POST /api/conversations/:id/messages` - Send message
+
+### Avatars
+- `POST /api/upload/avatar` - Upload avatar image
+- `POST /api/generate/avatar` - Generate avatar (procedural or AI)
 
 ## Examples
 
@@ -277,6 +353,25 @@ Contributions are welcome! Please feel free to submit pull requests or open issu
 ## License
 
 See LICENSE file for details.
+
+## Web Interface
+
+The web interface provides a modern, Silly Tavern-inspired experience:
+
+### Features
+- **Character Cards**: Visual character selection in a sidebar
+- **Chat Bubbles**: Clean message display with avatars
+- **Avatar Generation**: Generate unique avatars procedurally from character names
+- **Character Traits**: Track and display character development
+- **Google Drive Status**: See connection status for cloud memory
+- **Responsive Design**: Works on both desktop and mobile
+
+### Screenshots
+The interface includes:
+- Login/Register pages with feature highlights
+- Main chat view with character sidebar
+- Character creation modal with avatar upload/generation
+- Character info panel with traits display
 
 ## Acknowledgments
 

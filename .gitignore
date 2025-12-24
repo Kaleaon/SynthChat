@@ -48,3 +48,13 @@ Thumbs.db
 # Test data
 test_data/
 *.log
+
+# Web application
+instance/
+*.db
+synthchat.db
+
+# Uploaded avatars (keep default)
+web/static/avatars/*
+!web/static/avatars/default.png
+!web/static/avatars/.gitkeep
