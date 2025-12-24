@@ -104,7 +104,7 @@ class RoomService extends ChangeNotifier {
       final roomMaps = await _db.getUserRooms(userId);
       _rooms = roomMaps.map((m) => Room.fromMap(m)).toList();
     } catch (e) {
-      print('Error loading rooms: $e');
+      debugPrint('Error loading rooms: $e');
     }
 
     _isLoading = false;
@@ -131,7 +131,7 @@ class RoomService extends ChangeNotifier {
         return room;
       }
     } catch (e) {
-      print('Error creating room: $e');
+      debugPrint('Error creating room: $e');
     }
     return null;
   }
@@ -150,7 +150,7 @@ class RoomService extends ChangeNotifier {
       }
       return success;
     } catch (e) {
-      print('Error joining room: $e');
+      debugPrint('Error joining room: $e');
       return false;
     }
   }
@@ -164,7 +164,7 @@ class RoomService extends ChangeNotifier {
       }
       return success;
     } catch (e) {
-      print('Error leaving room: $e');
+      debugPrint('Error leaving room: $e');
       return false;
     }
   }
@@ -186,7 +186,7 @@ class RoomService extends ChangeNotifier {
       _currentParticipants = participantMaps.map((m) => RoomParticipant.fromMap(m)).toList();
       notifyListeners();
     } catch (e) {
-      print('Error loading room participants: $e');
+      debugPrint('Error loading room participants: $e');
     }
   }
 

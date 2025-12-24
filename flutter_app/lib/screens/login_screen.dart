@@ -22,13 +22,18 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _checkSession();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkSession();
+    });
   }
 
   Future<void> _checkSession() async {
+    if (!mounted) return;
     final auth = context.read<AuthService>();
-    // Wait for auth service to load
-    await Future.delayed(const Duration(milliseconds: 500));
+    // Wait for auth service to finish loading
+    while (auth.isLoading && mounted) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
     if (auth.isLoggedIn && mounted) {
       Navigator.pushReplacementNamed(context, '/characters');
     }

@@ -48,7 +48,7 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // RFC 5322 compliant email regex
+  // Simplified email validation regex (not fully RFC 5322 compliant)
   static final _emailRegex = RegExp(
     r'^[a-zA-Z0-9.!#$%&*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$',
   );
@@ -95,7 +95,8 @@ class AuthService extends ChangeNotifier {
 
   /// Log in a user
   Future<(bool, String)> login(String username, String password) async {
-    final userData = await _db.authenticateUser(username, password);
+    final normalizedUsername = username.trim();
+    final userData = await _db.authenticateUser(normalizedUsername, password);
 
     if (userData == null) {
       return (false, 'Invalid username or password');

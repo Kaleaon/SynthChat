@@ -143,8 +143,13 @@ class BlueskyAuthService extends ChangeNotifier {
 
         return (true, 'Successfully logged in as ${_session!.handle}');
       } else {
-        final errorData = jsonDecode(response.body) as Map<String, dynamic>;
-        final errorMessage = errorData['message'] as String? ?? 'Authentication failed';
+        String errorMessage = 'Authentication failed';
+        try {
+          final errorData = jsonDecode(response.body) as Map<String, dynamic>;
+          errorMessage = errorData['message'] as String? ?? errorMessage;
+        } catch (_) {
+          // Response body wasn't valid JSON (e.g., 502 gateway error)
+        }
         
         _error = errorMessage;
         _isLoading = false;

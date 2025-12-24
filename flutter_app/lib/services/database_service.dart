@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'dart:convert';
@@ -8,6 +10,7 @@ import 'package:crypto/crypto.dart';
 /// Database service for local SQLite storage
 class DatabaseService {
   static Database? _database;
+  static Completer<void>? _initCompleter;
   
   // PBKDF2 configuration for secure password hashing
   static const int _pbkdf2Iterations = 100000;
@@ -20,17 +23,37 @@ class DatabaseService {
     return _database!;
   }
 
-  /// Initialize the database
+  /// Initialize the database with synchronization to prevent race conditions
   Future<void> init() async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'synthchat.db');
+    // If already initialized, return immediately
+    if (_database != null) return;
+    
+    // If initialization is in progress, wait for it
+    if (_initCompleter != null) {
+      await _initCompleter!.future;
+      return;
+    }
+    
+    // Start initialization
+    _initCompleter = Completer<void>();
+    
+    try {
+      final dbPath = await getDatabasesPath();
+      final path = join(dbPath, 'synthchat.db');
 
-    _database = await openDatabase(
-      path,
-      version: 3,
-      onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
-    );
+      _database = await openDatabase(
+        path,
+        version: 3,
+        onCreate: _onCreate,
+        onUpgrade: _onUpgrade,
+      );
+      
+      _initCompleter!.complete();
+    } catch (e) {
+      _initCompleter!.completeError(e);
+      _initCompleter = null;
+      rethrow;
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -354,7 +377,7 @@ class DatabaseService {
 
       return await getUserById(id);
     } catch (e) {
-      print('Error creating user: $e');
+      debugPrint('Error creating user: $e');
       return null;
     }
   }
@@ -497,7 +520,7 @@ class DatabaseService {
 
       return await getCharacter(id);
     } catch (e) {
-      print('Error creating character: $e');
+      debugPrint('Error creating character: $e');
       return null;
     }
   }
@@ -540,7 +563,7 @@ class DatabaseService {
       );
       return true;
     } catch (e) {
-      print('Error updating character: $e');
+      debugPrint('Error updating character: $e');
       return false;
     }
   }
@@ -556,7 +579,7 @@ class DatabaseService {
       await db.delete('characters', where: 'id = ?', whereArgs: [id]);
       return true;
     } catch (e) {
-      print('Error deleting character: $e');
+      debugPrint('Error deleting character: $e');
       return false;
     }
   }
@@ -596,7 +619,7 @@ class DatabaseService {
           await db.query('messages', where: 'id = ?', whereArgs: [id]);
       return results.isNotEmpty ? results.first : null;
     } catch (e) {
-      print('Error adding message: $e');
+      debugPrint('Error adding message: $e');
       return null;
     }
   }
@@ -626,7 +649,7 @@ class DatabaseService {
       );
       return true;
     } catch (e) {
-      print('Error clearing messages: $e');
+      debugPrint('Error clearing messages: $e');
       return false;
     }
   }
@@ -634,6 +657,7 @@ class DatabaseService {
   // ==================== V2: Room Methods ====================
 
   /// Create a new room for collaborative interactions
+  /// Uses a transaction to ensure atomicity
   Future<Map<String, dynamic>?> createRoom({
     required String name,
     required int ownerId,
@@ -643,23 +667,26 @@ class DatabaseService {
     final now = DateTime.now().toIso8601String();
 
     try {
-      final id = await db.insert('rooms', {
-        'name': name,
-        'owner_id': ownerId,
-        'is_public': isPublic ? 1 : 0,
-        'created_at': now,
-      });
+      late int id;
+      await db.transaction((txn) async {
+        id = await txn.insert('rooms', {
+          'name': name,
+          'owner_id': ownerId,
+          'is_public': isPublic ? 1 : 0,
+          'created_at': now,
+        });
 
-      // Add owner as participant
-      await db.insert('room_participants', {
-        'room_id': id,
-        'user_id': ownerId,
-        'joined_at': now,
+        // Add owner as participant
+        await txn.insert('room_participants', {
+          'room_id': id,
+          'user_id': ownerId,
+          'joined_at': now,
+        });
       });
 
       return await getRoom(id);
     } catch (e) {
-      print('Error creating room: $e');
+      debugPrint('Error creating room: $e');
       return null;
     }
   }
@@ -705,7 +732,7 @@ class DatabaseService {
       });
       return true;
     } catch (e) {
-      print('Error adding room participant: $e');
+      debugPrint('Error adding room participant: $e');
       return false;
     }
   }
@@ -722,7 +749,7 @@ class DatabaseService {
       );
       return true;
     } catch (e) {
-      print('Error removing room participant: $e');
+      debugPrint('Error removing room participant: $e');
       return false;
     }
   }
@@ -762,7 +789,7 @@ class DatabaseService {
 
       return await getMemoryBranch(id);
     } catch (e) {
-      print('Error creating memory branch: $e');
+      debugPrint('Error creating memory branch: $e');
       return null;
     }
   }
@@ -807,7 +834,7 @@ class DatabaseService {
 
       return true;
     } catch (e) {
-      print('Error merging memory branch: $e');
+      debugPrint('Error merging memory branch: $e');
       return false;
     }
   }
@@ -836,7 +863,7 @@ class DatabaseService {
 
       return await getDocumentImport(id);
     } catch (e) {
-      print('Error creating document import: $e');
+      debugPrint('Error creating document import: $e');
       return null;
     }
   }
@@ -874,7 +901,7 @@ class DatabaseService {
       );
       return true;
     } catch (e) {
-      print('Error updating document import: $e');
+      debugPrint('Error updating document import: $e');
       return false;
     }
   }
@@ -915,7 +942,7 @@ class DatabaseService {
 
       return await getPersonalityEvent(id);
     } catch (e) {
-      print('Error logging personality event: $e');
+      debugPrint('Error logging personality event: $e');
       return null;
     }
   }
@@ -962,7 +989,7 @@ class DatabaseService {
       );
       return true;
     } catch (e) {
-      print('Error updating character mood: $e');
+      debugPrint('Error updating character mood: $e');
       return false;
     }
   }
@@ -995,7 +1022,7 @@ class DatabaseService {
       );
       return true;
     } catch (e) {
-      print('Error adding personality evolution: $e');
+      debugPrint('Error adding personality evolution: $e');
       return false;
     }
   }
@@ -1031,7 +1058,7 @@ class DatabaseService {
       );
       return true;
     } catch (e) {
-      print('Error updating character memory context: $e');
+      debugPrint('Error updating character memory context: $e');
       return false;
     }
   }
@@ -1070,7 +1097,7 @@ class DatabaseService {
 
       return await getRoomInvitation(id);
     } catch (e) {
-      print('Error creating room invitation: $e');
+      debugPrint('Error creating room invitation: $e');
       return null;
     }
   }
@@ -1120,6 +1147,7 @@ class DatabaseService {
   }
 
   /// Accept a room invitation
+  /// Uses a transaction to ensure atomicity
   Future<bool> acceptRoomInvitation(int invitationId) async {
     final db = await database;
     final now = DateTime.now().toIso8601String();
@@ -1130,23 +1158,26 @@ class DatabaseService {
         return false;
       }
 
-      // Update invitation status
-      await db.update(
-        'room_invitations',
-        {'status': 'accepted', 'responded_at': now},
-        where: 'id = ?',
-        whereArgs: [invitationId],
-      );
+      await db.transaction((txn) async {
+        // Update invitation status
+        await txn.update(
+          'room_invitations',
+          {'status': 'accepted', 'responded_at': now},
+          where: 'id = ?',
+          whereArgs: [invitationId],
+        );
 
-      // Add user as room participant
-      await addRoomParticipant(
-        roomId: invitation['room_id'] as int,
-        userId: invitation['invitee_id'] as int,
-      );
+        // Add user as room participant
+        await txn.insert('room_participants', {
+          'room_id': invitation['room_id'] as int,
+          'user_id': invitation['invitee_id'] as int,
+          'joined_at': now,
+        });
+      });
 
       return true;
     } catch (e) {
-      print('Error accepting room invitation: $e');
+      debugPrint('Error accepting room invitation: $e');
       return false;
     }
   }
@@ -1165,7 +1196,7 @@ class DatabaseService {
       );
       return true;
     } catch (e) {
-      print('Error rejecting room invitation: $e');
+      debugPrint('Error rejecting room invitation: $e');
       return false;
     }
   }
@@ -1182,7 +1213,7 @@ class DatabaseService {
       );
       return true;
     } catch (e) {
-      print('Error cancelling room invitation: $e');
+      debugPrint('Error cancelling room invitation: $e');
       return false;
     }
   }
@@ -1264,7 +1295,7 @@ class DatabaseService {
 
       return await getUserById(id);
     } catch (e) {
-      print('Error creating Bluesky user: $e');
+      debugPrint('Error creating Bluesky user: $e');
       return null;
     }
   }
@@ -1296,7 +1327,7 @@ class DatabaseService {
       );
       return true;
     } catch (e) {
-      print('Error linking Bluesky account: $e');
+      debugPrint('Error linking Bluesky account: $e');
       return false;
     }
   }
@@ -1318,7 +1349,7 @@ class DatabaseService {
       );
       return true;
     } catch (e) {
-      print('Error unlinking Bluesky account: $e');
+      debugPrint('Error unlinking Bluesky account: $e');
       return false;
     }
   }

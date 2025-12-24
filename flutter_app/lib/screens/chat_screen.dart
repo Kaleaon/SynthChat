@@ -23,8 +23,10 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _loadMessages();
-    _initPersonalityService();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadMessages();
+      _initPersonalityService();
+    });
   }
 
   @override
@@ -77,10 +79,23 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _isSending = true);
     _messageController.clear();
 
-    final chatService = context.read<ChatService>();
-    await chatService.sendMessage(character, content);
-
-    setState(() => _isSending = false);
+    try {
+      final chatService = context.read<ChatService>();
+      await chatService.sendMessage(character, content);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send message: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
+    }
     _scrollToBottom();
   }
 
@@ -99,7 +114,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   // V3: Show memory branch dialog
-  void _showMemoryBranchDialog(dynamic character) {
+  void _showMemoryBranchDialog(character) {
+    // Note: Using dynamic type to avoid circular import with Character model
     final nameController = TextEditingController();
     
     showDialog(

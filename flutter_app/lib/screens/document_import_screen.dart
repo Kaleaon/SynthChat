@@ -28,6 +28,17 @@ class _DocumentImportScreenState extends State<DocumentImportScreen> {
       if (result != null && result.files.single.path != null) {
         final file = result.files.single;
         final auth = context.read<AuthService>();
+        
+        // Guard against null user
+        if (auth.currentUser == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Please log in to import documents')),
+            );
+          }
+          return;
+        }
+        
         final parserService = context.read<DocumentParserService>();
 
         final extractedData = await parserService.importDocument(
@@ -60,6 +71,17 @@ class _DocumentImportScreenState extends State<DocumentImportScreen> {
 
     try {
       final auth = context.read<AuthService>();
+      
+      // Guard against null user
+      if (auth.currentUser == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please log in to create characters')),
+          );
+        }
+        return;
+      }
+      
       final parserService = context.read<DocumentParserService>();
       final characterService = context.read<CharacterService>();
 

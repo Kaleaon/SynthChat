@@ -21,7 +21,9 @@ class _RoomsScreenState extends State<RoomsScreen> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   @override
@@ -110,7 +112,9 @@ class _RoomsScreenState extends State<RoomsScreen> with SingleTickerProviderStat
           ],
         ),
       ),
-    );
+    ).then((_) {
+      nameController.dispose();
+    });
   }
 
   void _showRoomDetails(Room room) {
@@ -457,10 +461,13 @@ class _RoomDetailsSheetState extends State<_RoomDetailsSheet> {
   @override
   void initState() {
     super.initState();
-    _loadParticipants();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadParticipants();
+    });
   }
 
   Future<void> _loadParticipants() async {
+    if (!mounted) return;
     final roomService = context.read<RoomService>();
     await roomService.setCurrentRoom(widget.room.id);
   }
@@ -699,7 +706,10 @@ class _RoomDetailsSheetState extends State<_RoomDetailsSheet> {
           ],
         ),
       ),
-    );
+    ).then((_) {
+      usernameController.dispose();
+      messageController.dispose();
+    });
   }
 
   void _showAddCharacterDialog() {
