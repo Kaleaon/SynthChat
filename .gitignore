@@ -1,34 +1,13 @@
-# Environment variables
-.env
-credentials.json
-token.json
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
+# Flutter/Dart
+.dart_tool/
+.packages
 build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-# lib/ is used by Flutter, so only ignore root-level Python lib
-/lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+*.iml
+.metadata
+.flutter-plugins
+.flutter-plugins-dependencies
 
-# Flutter
+# Flutter app specific
 flutter_app/.dart_tool/
 flutter_app/build/
 flutter_app/.packages
@@ -36,13 +15,6 @@ flutter_app/.flutter-plugins
 flutter_app/.flutter-plugins-dependencies
 flutter_app/*.iml
 flutter_app/.metadata
-
-# Virtual environments
-venv/
-env/
-ENV/
-env.bak/
-venv.bak/
 
 # IDE
 .vscode/
@@ -55,16 +27,20 @@ venv.bak/
 .DS_Store
 Thumbs.db
 
-# Test data
-test_data/
+# Environment and secrets
+.env
+*.key
+*.pem
+
+# Logs
 *.log
 
-# Web application
-instance/
+# Database files
 *.db
-synthchat.db
 
-# Uploaded avatars (keep default)
-web/static/avatars/*
-!web/static/avatars/default.png
-!web/static/avatars/.gitkeep
+# Generated files
+*.g.dart
+*.freezed.dart
+
+# Test coverage
+coverage/
