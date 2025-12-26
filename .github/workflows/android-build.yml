@@ -33,7 +33,7 @@ jobs:
           java-version: '17'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v3.2.1
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -43,7 +43,8 @@ jobs:
           cache: true
 
       - name: Accept Android SDK licenses
-        run: yes | flutter doctor --android-licenses || true
+        run: yes | flutter doctor --android-licenses
+        continue-on-error: false
 
       - name: Verify Flutter installation
         run: |
