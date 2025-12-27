@@ -320,6 +320,7 @@ class DatabaseService {
           max_tokens INTEGER DEFAULT 500,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
           updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
           UNIQUE(user_id)
         )
       ''');

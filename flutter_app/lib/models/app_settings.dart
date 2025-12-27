@@ -89,10 +89,12 @@ class AppSettings {
     }
     
     // Default endpoints for different providers
+    // Note: Gemini endpoint is constructed dynamically in ChatService
     switch (llmProvider.toLowerCase()) {
       case 'openai':
         return 'https://api.openai.com/v1/chat/completions';
       case 'gemini':
+        // Base URL - actual endpoint constructed in ChatService with model
         return 'https://generativelanguage.googleapis.com/v1beta/models';
       case 'anthropic':
         return 'https://api.anthropic.com/v1/messages';
