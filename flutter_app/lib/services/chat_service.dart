@@ -6,20 +6,18 @@ import '../models/message.dart';
 import '../models/character.dart';
 import 'database_service.dart';
 import 'personality_evolution_service.dart';
+import 'settings_service.dart';
 
 /// Chat service for managing conversations with V5 personality evolution
 class ChatService extends ChangeNotifier {
   final DatabaseService _db;
   PersonalityEvolutionService? _personalityService;
+  SettingsService? _settingsService;
   List<Message> _messages = [];
   bool _isLoading = false;
   bool _isTyping = false;
   String? _currentThoughtPattern;
   MoodState? _currentMood;
-
-  // OpenAI API configuration
-  String? _apiKey;
-  static const String _apiUrl = 'https://api.openai.com/v1/chat/completions';
 
   ChatService(this._db);
 
@@ -29,9 +27,9 @@ class ChatService extends ChangeNotifier {
   String? get currentThoughtPattern => _currentThoughtPattern;
   MoodState? get currentMood => _currentMood;
 
-  /// Set the OpenAI API key
-  void setApiKey(String? apiKey) {
-    _apiKey = apiKey;
+  /// Set settings service for API configuration
+  void setSettingsService(SettingsService service) {
+    _settingsService = service;
   }
 
   /// Set personality service for mood/trait tracking (V5)
@@ -139,21 +137,21 @@ class ChatService extends ChangeNotifier {
 
     String responseContent = '';
 
-    // Try OpenAI API
-    if (_apiKey != null && _apiKey!.isNotEmpty) {
+    // Try LLM API if settings are configured
+    if (_settingsService != null && _settingsService!.isConfigured) {
       try {
-        final response = await _callOpenAI(character, userInput);
+        final response = await _callLLM(character, userInput);
         if (response != null) {
           responseContent = response;
         }
       } catch (e) {
-        print('OpenAI API error: $e');
+        print('LLM API error: $e');
       }
     }
 
-    // Fallback response if API failed
+    // Fallback response if API failed or not configured
     if (responseContent.isEmpty) {
-      responseContent = "Hello! I'm ${character.name}. I received your message: \"${userInput.length > 100 ? '${userInput.substring(0, 100)}...' : userInput}\" (Configure OpenAI API key for full responses)";
+      responseContent = "Hello! I'm ${character.name}. I received your message: \"${userInput.length > 100 ? '${userInput.substring(0, 100)}...' : userInput}\" (Configure API settings for full responses)";
     }
 
     // V5: Update personality based on interaction
@@ -181,8 +179,36 @@ class ChatService extends ChangeNotifier {
     };
   }
 
+  /// Call LLM API based on configured provider
+  Future<String?> _callLLM(Character character, String userInput) async {
+    if (_settingsService == null || !_settingsService!.isConfigured) {
+      return null;
+    }
+
+    final provider = _settingsService!.llmProvider.toLowerCase();
+    
+    switch (provider) {
+      case 'openai':
+        return await _callOpenAI(character, userInput);
+      case 'gemini':
+        return await _callGemini(character, userInput);
+      case 'anthropic':
+        return await _callAnthropic(character, userInput);
+      default:
+        // Try as OpenAI-compatible API
+        return await _callOpenAI(character, userInput);
+    }
+  }
+
   /// Call OpenAI API
   Future<String?> _callOpenAI(Character character, String userInput) async {
+    if (_settingsService == null) return null;
+
+    final apiKey = _settingsService!.apiKey;
+    final apiUrl = _settingsService!.apiEndpoint;
+    
+    if (apiKey == null || apiKey.isEmpty) return null;
+
     // Build messages
     final List<Map<String, String>> apiMessages = [
       {'role': 'system', 'content': character.fullSystemPrompt},
@@ -205,10 +231,10 @@ class ChatService extends ChangeNotifier {
     // Make API request with timeout
     try {
       final response = await http.post(
-        Uri.parse(_apiUrl),
+        Uri.parse(apiUrl),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_apiKey',
+          'Authorization': 'Bearer $apiKey',
         },
         body: json.encode({
           'model': character.model,
@@ -240,6 +266,149 @@ class ChatService extends ChangeNotifier {
       }
     } on TimeoutException {
       debugPrint('OpenAI API request timed out');
+      return null;
+    }
+  }
+
+  /// Call Google Gemini API
+  Future<String?> _callGemini(Character character, String userInput) async {
+    if (_settingsService == null) return null;
+
+    final apiKey = _settingsService!.apiKey;
+    
+    if (apiKey == null || apiKey.isEmpty) return null;
+
+    // Build conversation context
+    String conversationContext = character.fullSystemPrompt;
+    
+    // Add recent conversation history
+    final recentMessages = _messages.length > 5
+        ? _messages.sublist(_messages.length - 5)
+        : _messages;
+
+    for (final msg in recentMessages) {
+      conversationContext += '\n${msg.role == "user" ? "User" : character.name}: ${msg.content}';
+    }
+    
+    conversationContext += '\nUser: $userInput\n${character.name}:';
+
+    // Make API request with timeout
+    try {
+      final model = character.model.isNotEmpty ? character.model : 'gemini-pro';
+      final response = await http.post(
+        Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'contents': [
+            {
+              'parts': [
+                {'text': conversationContext}
+              ]
+            }
+          ],
+          'generationConfig': {
+            'temperature': character.temperature,
+            'maxOutputTokens': character.maxTokens,
+          }
+        }),
+      ).timeout(
+        const Duration(seconds: 60),
+        onTimeout: () => throw TimeoutException('Gemini API request timed out'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        // Parse Gemini response
+        final candidates = data['candidates'] as List?;
+        if (candidates != null && candidates.isNotEmpty) {
+          final content = candidates[0]['content'] as Map<String, dynamic>?;
+          final parts = content?['parts'] as List?;
+          if (parts != null && parts.isNotEmpty) {
+            final text = parts[0]['text'] as String?;
+            if (text != null) {
+              return text.trim();
+            }
+          }
+        }
+        debugPrint('Gemini API returned unexpected response structure');
+        return null;
+      } else {
+        debugPrint('Gemini API error: ${response.statusCode} - ${response.body}');
+        return null;
+      }
+    } on TimeoutException {
+      debugPrint('Gemini API request timed out');
+      return null;
+    }
+  }
+
+  /// Call Anthropic Claude API
+  Future<String?> _callAnthropic(Character character, String userInput) async {
+    if (_settingsService == null) return null;
+
+    final apiKey = _settingsService!.apiKey;
+    
+    if (apiKey == null || apiKey.isEmpty) return null;
+
+    // Build messages for Claude
+    final List<Map<String, String>> apiMessages = [];
+
+    // Add recent conversation history
+    final recentMessages = _messages.length > 5
+        ? _messages.sublist(_messages.length - 5)
+        : _messages;
+
+    for (final msg in recentMessages) {
+      apiMessages.add({
+        'role': msg.role == 'assistant' ? 'assistant' : 'user',
+        'content': msg.content,
+      });
+    }
+
+    apiMessages.add({'role': 'user', 'content': userInput});
+
+    // Make API request with timeout
+    try {
+      final model = character.model.isNotEmpty ? character.model : 'claude-3-sonnet-20240229';
+      final response = await http.post(
+        Uri.parse('https://api.anthropic.com/v1/messages'),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: json.encode({
+          'model': model,
+          'system': character.fullSystemPrompt,
+          'messages': apiMessages,
+          'temperature': character.temperature,
+          'max_tokens': character.maxTokens,
+        }),
+      ).timeout(
+        const Duration(seconds: 60),
+        onTimeout: () => throw TimeoutException('Anthropic API request timed out'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        // Parse Claude response
+        final content = data['content'] as List?;
+        if (content != null && content.isNotEmpty) {
+          final text = content[0]['text'] as String?;
+          if (text != null) {
+            return text;
+          }
+        }
+        debugPrint('Anthropic API returned unexpected response structure');
+        return null;
+      } else {
+        debugPrint('Anthropic API error: ${response.statusCode} - ${response.body}');
+        return null;
+      }
+    } on TimeoutException {
+      debugPrint('Anthropic API request timed out');
       return null;
     }
   }

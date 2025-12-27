@@ -43,7 +43,7 @@ class DatabaseService {
 
       _database = await openDatabase(
         path,
-        version: 3,
+        version: 4,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
@@ -198,6 +198,24 @@ class DatabaseService {
         FOREIGN KEY (invitee_id) REFERENCES users (id) ON DELETE CASCADE
       )
     ''');
+
+    // App settings table for API configuration
+    await db.execute('''
+      CREATE TABLE app_settings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        llm_provider TEXT DEFAULT 'openai',
+        api_key TEXT DEFAULT '',
+        api_endpoint TEXT DEFAULT '',
+        model TEXT DEFAULT 'gpt-3.5-turbo',
+        temperature REAL DEFAULT 0.7,
+        max_tokens INTEGER DEFAULT 500,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        UNIQUE(user_id)
+      )
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -284,6 +302,25 @@ class DatabaseService {
           message TEXT DEFAULT '',
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
           responded_at TEXT
+        )
+      ''');
+    }
+
+    if (oldVersion < 4) {
+      // Create app settings table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS app_settings (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          llm_provider TEXT DEFAULT 'openai',
+          api_key TEXT DEFAULT '',
+          api_endpoint TEXT DEFAULT '',
+          model TEXT DEFAULT 'gpt-3.5-turbo',
+          temperature REAL DEFAULT 0.7,
+          max_tokens INTEGER DEFAULT 500,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id)
         )
       ''');
     }
@@ -1350,6 +1387,90 @@ class DatabaseService {
       return true;
     } catch (e) {
       debugPrint('Error unlinking Bluesky account: $e');
+      return false;
+    }
+  }
+
+  // ============================================================================
+  // App Settings Methods
+  // ============================================================================
+
+  /// Get app settings for a user
+  Future<Map<String, dynamic>?> getAppSettings(int userId) async {
+    final db = await database;
+    final results = await db.query(
+      'app_settings',
+      where: 'user_id = ?',
+      whereArgs: [userId],
+    );
+    return results.isNotEmpty ? results.first : null;
+  }
+
+  /// Create or update app settings for a user
+  Future<bool> saveAppSettings({
+    required int userId,
+    required String llmProvider,
+    required String apiKey,
+    String apiEndpoint = '',
+    String model = 'gpt-3.5-turbo',
+    double temperature = 0.7,
+    int maxTokens = 500,
+  }) async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+
+    try {
+      final existing = await getAppSettings(userId);
+      
+      if (existing != null) {
+        // Update existing settings
+        await db.update(
+          'app_settings',
+          {
+            'llm_provider': llmProvider,
+            'api_key': apiKey,
+            'api_endpoint': apiEndpoint,
+            'model': model,
+            'temperature': temperature,
+            'max_tokens': maxTokens,
+            'updated_at': now,
+          },
+          where: 'user_id = ?',
+          whereArgs: [userId],
+        );
+      } else {
+        // Insert new settings
+        await db.insert('app_settings', {
+          'user_id': userId,
+          'llm_provider': llmProvider,
+          'api_key': apiKey,
+          'api_endpoint': apiEndpoint,
+          'model': model,
+          'temperature': temperature,
+          'max_tokens': maxTokens,
+          'created_at': now,
+          'updated_at': now,
+        });
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Error saving app settings: $e');
+      return false;
+    }
+  }
+
+  /// Delete app settings for a user
+  Future<bool> deleteAppSettings(int userId) async {
+    final db = await database;
+    try {
+      await db.delete(
+        'app_settings',
+        where: 'user_id = ?',
+        whereArgs: [userId],
+      );
+      return true;
+    } catch (e) {
+      debugPrint('Error deleting app settings: $e');
       return false;
     }
   }

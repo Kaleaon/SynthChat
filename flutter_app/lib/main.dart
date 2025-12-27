@@ -11,6 +11,7 @@ import 'services/memory_branch_service.dart';
 import 'services/document_parser_service.dart';
 import 'services/personality_evolution_service.dart';
 import 'services/bluesky_auth_service.dart';
+import 'services/settings_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/characters_screen.dart';
@@ -19,6 +20,7 @@ import 'screens/character_edit_screen.dart';
 import 'screens/rooms_screen.dart';
 import 'screens/document_import_screen.dart';
 import 'screens/personality_screen.dart';
+import 'screens/settings_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -53,6 +55,14 @@ void main() async {
         ChangeNotifierProvider<BlueskyAuthService>.value(value: blueskyAuth),
         // Main auth service with Bluesky integration
         ChangeNotifierProvider<AuthService>.value(value: authService),
+        // Settings service for API configuration
+        ChangeNotifierProxyProvider<AuthService, SettingsService>(
+          create: (context) => SettingsService(dbService),
+          update: (context, auth, previous) {
+            previous?.setUserId(auth.currentUser?.id);
+            return previous ?? SettingsService(dbService);
+          },
+        ),
         ChangeNotifierProxyProvider<AuthService, CharacterService>(
           create: (context) => CharacterService(dbService),
           update: (context, auth, previous) {
@@ -60,7 +70,13 @@ void main() async {
             return previous ?? CharacterService(dbService);
           },
         ),
-        ChangeNotifierProvider(create: (_) => ChatService(dbService)),
+        ChangeNotifierProxyProvider<SettingsService, ChatService>(
+          create: (context) => ChatService(dbService),
+          update: (context, settings, previous) {
+            previous?.setSettingsService(settings);
+            return previous ?? ChatService(dbService);
+          },
+        ),
         // V2: Room service for collaborative interactions
         ChangeNotifierProvider(create: (_) => RoomService(dbService)),
         // V3: Memory branch service for conversation forking
@@ -98,6 +114,8 @@ class SynthChatApp extends StatelessWidget {
         '/import': (context) => const DocumentImportScreen(),
         // V5: Personality evolution view
         '/personality': (context) => const PersonalityScreen(),
+        // Settings screen
+        '/settings': (context) => const SettingsScreen(),
       },
     );
   }
