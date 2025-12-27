@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+
 import 'database_service.dart';
 
 /// Memory branch model for V3: private conversation forking
@@ -64,7 +65,7 @@ class MemoryBranchService extends ChangeNotifier {
       final branchMaps = await _db.getCharacterMemoryBranches(characterId);
       _branches = branchMaps.map((m) => MemoryBranch.fromMap(m)).toList();
     } catch (e) {
-      print('Error loading memory branches: $e');
+      debugPrint('Error loading memory branches: $e');
     }
 
     _isLoading = false;
@@ -93,7 +94,7 @@ class MemoryBranchService extends ChangeNotifier {
         return branch;
       }
     } catch (e) {
-      print('Error creating memory branch: $e');
+      debugPrint('Error creating memory branch: $e');
     }
     return null;
   }
@@ -121,7 +122,7 @@ class MemoryBranchService extends ChangeNotifier {
       }
       return success;
     } catch (e) {
-      print('Error merging memory branch: $e');
+      debugPrint('Error merging memory branch: $e');
       return false;
     }
   }
