@@ -103,22 +103,20 @@ class AppSettings {
     }
   }
 
+  /// Default models for each provider
+  static const Map<String, String> defaultModels = {
+    'openai': 'gpt-3.5-turbo',
+    'gemini': 'gemini-pro',
+    'anthropic': 'claude-3-sonnet-20240229',
+  };
+
   /// Get default model for provider
   String get effectiveModel {
     if (model.isNotEmpty) {
       return model;
     }
 
-    switch (llmProvider.toLowerCase()) {
-      case 'openai':
-        return 'gpt-3.5-turbo';
-      case 'gemini':
-        return 'gemini-pro';
-      case 'anthropic':
-        return 'claude-3-sonnet-20240229';
-      default:
-        return 'gpt-3.5-turbo';
-    }
+    return defaultModels[llmProvider.toLowerCase()] ?? 'gpt-3.5-turbo';
   }
 
   /// Check if settings are valid

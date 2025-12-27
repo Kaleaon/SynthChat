@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/message.dart';
 import '../models/character.dart';
+import '../models/app_settings.dart';
 import 'database_service.dart';
 import 'personality_evolution_service.dart';
 import 'settings_service.dart';
@@ -294,7 +295,9 @@ class ChatService extends ChangeNotifier {
 
     // Make API request with timeout
     try {
-      final model = character.model.isNotEmpty ? character.model : 'gemini-pro';
+      final model = character.model.isNotEmpty 
+          ? character.model 
+          : AppSettings.defaultModels['gemini']!;
       final response = await http.post(
         Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey'),
         headers: {
@@ -371,7 +374,9 @@ class ChatService extends ChangeNotifier {
 
     // Make API request with timeout
     try {
-      final model = character.model.isNotEmpty ? character.model : 'claude-3-sonnet-20240229';
+      final model = character.model.isNotEmpty 
+          ? character.model 
+          : AppSettings.defaultModels['anthropic']!;
       final response = await http.post(
         Uri.parse('https://api.anthropic.com/v1/messages'),
         headers: {

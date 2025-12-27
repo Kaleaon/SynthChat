@@ -76,16 +76,7 @@ class SettingsService extends ChangeNotifier {
 
   /// Get default model for a provider
   String _getDefaultModel(String provider) {
-    switch (provider.toLowerCase()) {
-      case 'openai':
-        return 'gpt-3.5-turbo';
-      case 'gemini':
-        return 'gemini-pro';
-      case 'anthropic':
-        return 'claude-3-sonnet-20240229';
-      default:
-        return 'gpt-3.5-turbo';
-    }
+    return AppSettings.defaultModels[provider.toLowerCase()] ?? 'gpt-3.5-turbo';
   }
 
   /// Delete settings
