@@ -297,7 +297,7 @@ class ChatService extends ChangeNotifier {
     try {
       final model = character.model.isNotEmpty 
           ? character.model 
-          : AppSettings.defaultModels['gemini']!;
+          : (AppSettings.defaultModels['gemini'] ?? 'gemini-pro');
       final response = await http.post(
         Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey'),
         headers: {
@@ -376,7 +376,7 @@ class ChatService extends ChangeNotifier {
     try {
       final model = character.model.isNotEmpty 
           ? character.model 
-          : AppSettings.defaultModels['anthropic']!;
+          : (AppSettings.defaultModels['anthropic'] ?? 'claude-3-sonnet-20240229');
       final response = await http.post(
         Uri.parse('https://api.anthropic.com/v1/messages'),
         headers: {

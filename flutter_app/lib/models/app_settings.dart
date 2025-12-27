@@ -110,6 +110,34 @@ class AppSettings {
     'anthropic': 'claude-3-sonnet-20240229',
   };
 
+  /// Available models by provider
+  static const Map<String, List<String>> availableModels = {
+    'openai': [
+      'gpt-3.5-turbo',
+      'gpt-4',
+      'gpt-4-turbo',
+      'gpt-4o',
+      'gpt-4o-mini',
+    ],
+    'gemini': [
+      'gemini-pro',
+      'gemini-pro-vision',
+      'gemini-1.5-pro',
+      'gemini-1.5-flash',
+    ],
+    'anthropic': [
+      'claude-3-opus-20240229',
+      'claude-3-sonnet-20240229',
+      'claude-3-haiku-20240307',
+      'claude-3-5-sonnet-20241022',
+    ],
+  };
+
+  /// Get all available models (combined from all providers)
+  static List<String> get allModels {
+    return availableModels.values.expand((models) => models).toList();
+  }
+
   /// Get default model for provider
   String get effectiveModel {
     if (model.isNotEmpty) {

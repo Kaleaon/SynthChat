@@ -272,6 +272,8 @@ Return only valid JSON.
       final apiKey = _settingsService!.apiKey;
       final apiEndpoint = _settingsService!.apiEndpoint;
       
+      // Note: Document parsing currently supports OpenAI-compatible endpoints only
+      // For Gemini/Anthropic, ensure settings use OpenAI or custom OpenAI-compatible endpoint
       final response = await http.post(
         Uri.parse(apiEndpoint),
         headers: {

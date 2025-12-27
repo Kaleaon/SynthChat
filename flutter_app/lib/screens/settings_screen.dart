@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/settings_service.dart';
+import '../models/app_settings.dart';
 import '../theme/app_theme.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -29,26 +30,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     {'value': 'custom', 'name': 'Custom API'},
   ];
 
-  final Map<String, List<String>> _modelsByProvider = {
-    'openai': [
-      'gpt-3.5-turbo',
-      'gpt-4',
-      'gpt-4-turbo',
-      'gpt-4o',
-      'gpt-4o-mini',
-    ],
-    'gemini': [
-      'gemini-pro',
-      'gemini-pro-vision',
-      'gemini-1.5-pro',
-      'gemini-1.5-flash',
-    ],
-    'anthropic': [
-      'claude-3-opus-20240229',
-      'claude-3-sonnet-20240229',
-      'claude-3-haiku-20240307',
-      'claude-3-5-sonnet-20241022',
-    ],
+  // Use centralized model lists from AppSettings
+  Map<String, List<String>> get _modelsByProvider => {
+    ...AppSettings.availableModels,
     'custom': [],
   };
 
