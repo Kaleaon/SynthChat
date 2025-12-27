@@ -48,7 +48,7 @@ class ChatService extends ChangeNotifier {
       final data = await _db.getMessages(characterId, limit: 100);
       _messages = data.map((map) => Message.fromMap(map)).toList();
     } catch (e) {
-      print('Error loading messages: $e');
+      debugPrint('Error loading messages: $e');
     }
 
     _isLoading = false;
@@ -95,7 +95,7 @@ class ChatService extends ChangeNotifier {
         return assistantMsg;
       }
     } catch (e) {
-      print('Error generating response: $e');
+      debugPrint('Error generating response: $e');
     }
 
     _isTyping = false;
@@ -147,7 +147,7 @@ class ChatService extends ChangeNotifier {
           responseContent = response;
         }
       } catch (e) {
-        print('OpenAI API error: $e');
+        debugPrint('OpenAI API error: $e');
       }
     }
 
@@ -170,7 +170,7 @@ class ChatService extends ChangeNotifier {
         // Auto-evolve personality traits
         await _personalityService!.autoEvolve(character.id, userInput, responseContent);
       } catch (e) {
-        print('Personality evolution error: $e');
+        debugPrint('Personality evolution error: $e');
       }
     }
 

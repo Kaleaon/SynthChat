@@ -176,7 +176,7 @@ class DocumentParserService extends ChangeNotifier {
 
       return extractedData;
     } catch (e) {
-      print('Error importing document: $e');
+      debugPrint('Error importing document: $e');
       _isProcessing = false;
       _processingStatus = 'Error: $e';
       notifyListeners();

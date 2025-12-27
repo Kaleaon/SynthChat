@@ -241,7 +241,7 @@ class PersonalityEvolutionService extends ChangeNotifier {
         }
       }
     } catch (e) {
-      print('Error loading character personality: $e');
+      debugPrint('Error loading character personality: $e');
     }
 
     _isLoading = false;
@@ -273,7 +273,7 @@ class PersonalityEvolutionService extends ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
-      print('Error updating mood: $e');
+      debugPrint('Error updating mood: $e');
     }
   }
 
@@ -372,7 +372,7 @@ class PersonalityEvolutionService extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Error logging personality event: $e');
+      debugPrint('Error logging personality event: $e');
     }
   }
 
@@ -410,7 +410,7 @@ class PersonalityEvolutionService extends ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
-      print('Error evolving trait: $e');
+      debugPrint('Error evolving trait: $e');
     }
   }
 

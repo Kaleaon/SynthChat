@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+
 import '../models/character.dart';
 import 'database_service.dart';
 
@@ -41,7 +42,7 @@ class CharacterService extends ChangeNotifier {
       final data = await _db.getCharacters(_userId!);
       _characters = data.map((map) => Character.fromMap(map)).toList();
     } catch (e) {
-      print('Error loading characters: $e');
+      debugPrint('Error loading characters: $e');
     }
 
     _isLoading = false;
