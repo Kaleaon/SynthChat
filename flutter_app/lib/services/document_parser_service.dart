@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'database_service.dart';
+import 'settings_service.dart';
 
 /// Document import model for V4: AI-powered document parsing
 class DocumentImport {
@@ -99,16 +100,21 @@ class ExtractedCharacterData {
 /// Service for parsing documents and creating characters (V4)
 class DocumentParserService extends ChangeNotifier {
   final DatabaseService _db;
-  final String? apiKey;
+  SettingsService? _settingsService;
   List<DocumentImport> _imports = [];
   bool _isProcessing = false;
   String _processingStatus = '';
 
-  DocumentParserService(this._db, {this.apiKey});
+  DocumentParserService(this._db);
 
   List<DocumentImport> get imports => _imports;
   bool get isProcessing => _isProcessing;
   String get processingStatus => _processingStatus;
+
+  /// Set settings service for API configuration
+  void setSettingsService(SettingsService service) {
+    _settingsService = service;
+  }
 
   /// Load all document imports for a user
   Future<void> loadImports(int userId) async {
@@ -222,8 +228,8 @@ class DocumentParserService extends ChangeNotifier {
     String content,
     String fileType,
   ) async {
-    // Try AI extraction first if API key is available
-    if (apiKey != null && apiKey!.isNotEmpty) {
+    // Try AI extraction first if settings are configured
+    if (_settingsService != null && _settingsService!.isConfigured) {
       try {
         return await _extractWithAI(content);
       } catch (e) {
@@ -235,8 +241,12 @@ class DocumentParserService extends ChangeNotifier {
     return _extractWithHeuristics(content, fileType);
   }
 
-  /// Extract character data using OpenAI API
+  /// Extract character data using LLM API
   Future<ExtractedCharacterData> _extractWithAI(String content) async {
+    if (_settingsService == null || !_settingsService!.isConfigured) {
+      throw Exception('Settings not configured');
+    }
+
     // Truncate content to avoid exceeding token limits (~12K chars ≈ 3K tokens)
     final truncatedContent = content.length > 12000 
         ? '${content.substring(0, 12000)}...[truncated]' 
@@ -259,14 +269,19 @@ Return only valid JSON.
 ''';
 
     try {
+      final apiKey = _settingsService!.apiKey;
+      final apiEndpoint = _settingsService!.apiEndpoint;
+      
+      // Note: Document parsing currently supports OpenAI-compatible endpoints only
+      // For Gemini/Anthropic, ensure settings use OpenAI or custom OpenAI-compatible endpoint
       final response = await http.post(
-        Uri.parse('https://api.openai.com/v1/chat/completions'),
+        Uri.parse(apiEndpoint),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $apiKey',
         },
         body: jsonEncode({
-          'model': 'gpt-3.5-turbo',
+          'model': _settingsService!.model,
           'messages': [
             {'role': 'user', 'content': prompt}
           ],
