@@ -82,7 +82,13 @@ void main() async {
         // V3: Memory branch service for conversation forking
         ChangeNotifierProvider(create: (_) => MemoryBranchService(dbService)),
         // V4: Document parser service for character creation
-        ChangeNotifierProvider(create: (_) => DocumentParserService(dbService)),
+        ChangeNotifierProxyProvider<SettingsService, DocumentParserService>(
+          create: (context) => DocumentParserService(dbService),
+          update: (context, settings, previous) {
+            previous?.setSettingsService(settings);
+            return previous ?? DocumentParserService(dbService);
+          },
+        ),
         // V5: Personality evolution service
         ChangeNotifierProvider(create: (_) => PersonalityEvolutionService(dbService)),
       ],
