@@ -110,7 +110,7 @@ class _CharactersScreenState extends State<CharactersScreen> {
             onSelected: (value) {
               switch (value) {
                 case 'settings':
-                  // TODO: Settings screen
+                  Navigator.pushNamed(context, '/settings');
                   break;
                 case 'logout':
                   _logout();
